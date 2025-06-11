@@ -1,6 +1,18 @@
-# Cursor Talk to Figma MCP
+# Figma Copilot
 
-This project implements a Model Context Protocol (MCP) integration between Cursor AI and Figma, allowing Cursor to communicate with Figma for reading designs and modifying them programmatically.
+An enhanced Model Context Protocol (MCP) integration between Cursor AI and Figma, allowing Cursor to communicate with Figma for reading designs and modifying them programmatically. This project includes improved font handling, better error recovery, and additional features.
+
+## Credits
+
+This project is based on [cursor-talk-to-figma-mcp](https://github.com/sonnylazuardi/cursor-talk-to-figma-mcp) by Sonny Lazuardi.
+
+## Key Enhancements
+
+- **Fixed "Cannot unwrap symbol" error** when working with mixed fonts
+- **Improved font loading** with `getRangeAllFontNames()` API
+- **Better error handling** with `Promise.allSettled()` for font loading
+- **Safe value returns** to avoid serialization issues
+- **Enhanced logging** for debugging font issues
 
 https://github.com/user-attachments/assets/129a14d2-ed73-470f-9a4c-2240b2a4885c
 
@@ -246,6 +258,12 @@ When working with the Figma MCP:
 - Use `get_reactions` to extract prototype flows,
 - set a default connector with `set_default_connector`,
 - and generate connector lines with `create_connections` for clear visual flow mapping.
+
+## Troubleshooting
+
+### Font Issues
+
+If you encounter "Cannot unwrap symbol" errors when updating text, this is likely due to mixed fonts in text nodes. See [Font Handling Documentation](docs/FONT_HANDLING.md) for details on how the plugin handles mixed fonts and available strategies.
 
 ## License
 

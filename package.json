@@ -1,11 +1,15 @@
 {
-  "name": "cursor-talk-to-figma-mcp",
-  "description": "Cursor Talk to Figma MCP",
-  "version": "0.2.1",
+  "name": "figma-copilot",
+  "description": "Enhanced Figma MCP server with improved font handling and additional features",
+  "version": "0.2.4",
   "module": "dist/server.js",
   "main": "dist/server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xlzuvekas/figma-copilot.git"
+  },
   "bin": {
-    "cursor-talk-to-figma-mcp": "dist/server.js"
+    "figma-copilot": "dist/server.js"
   },
   "files": [
     "dist",
