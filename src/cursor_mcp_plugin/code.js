@@ -1372,15 +1372,72 @@ async function setTextContent(params) {
   }
 
   try {
-    await figma.loadFontAsync(node.fontName);
+    // FIX: Don't access node.fontName directly first - it might throw "Cannot unwrap symbol"
+    // Instead, use getRangeAllFontNames which is safe for mixed fonts
+    let fontsToLoad = [];
+    let hasMixedFonts = false;
+    
+    try {
+      // Safe way to get all fonts without triggering the symbol error
+      fontsToLoad = node.getRangeAllFontNames(0, node.characters.length);
+      console.log(`Found ${fontsToLoad.length} fonts in text node:`, fontsToLoad.map(f => `${f.family} ${f.style}`));
+      hasMixedFonts = fontsToLoad.length > 1;
+    } catch (e) {
+      console.warn("Could not get fonts from text node:", e.message);
+    }
 
-    await setCharacters(node, text);
+    // Check if node has missing fonts before trying to load
+    if (node.hasMissingFont) {
+      console.warn("Text node has missing fonts - will use fallback strategy");
+    } else if (fontsToLoad.length > 0) {
+      // Try to load all fonts, but continue even if some fail
+      const loadResults = await Promise.allSettled(
+        fontsToLoad.map(font => figma.loadFontAsync(font))
+      );
+      
+      const failedLoads = loadResults.filter(r => r.status === 'rejected');
+      if (failedLoads.length > 0) {
+        console.warn(`Failed to load ${failedLoads.length} out of ${fontsToLoad.length} fonts`);
+      }
+    }
+
+    // Now use setCharacters with appropriate strategy
+    const fallbackFont = { family: "Inter", style: "Regular" };
+    
+    if (hasMixedFonts || node.hasMissingFont) {
+      // Mixed fonts or missing fonts - use smart strategy
+      const success = await setCharacters(node, text, { 
+        smartStrategy: "prevail",
+        fallbackFont: fallbackFont
+      });
+      
+      if (!success) {
+        throw new Error("Failed to set text content with mixed fonts");
+      }
+    } else {
+      // Single font case - simpler handling
+      await setCharacters(node, text, { 
+        fallbackFont: fallbackFont 
+      });
+    }
+
+    // Return safe values - avoid returning figma.mixed
+    let safeFontName = fallbackFont;
+    try {
+      // Only try to access fontName after we've set the text
+      if (node.fontName !== figma.mixed) {
+        safeFontName = node.fontName;
+      }
+    } catch (e) {
+      // Even this check can throw, so we catch it
+      console.warn("Could not get fontName for return value");
+    }
 
     return {
       id: node.id,
       name: node.name,
       characters: node.characters,
-      fontName: node.fontName,
+      fontName: safeFontName,
     };
   } catch (error) {
     throw new Error(`Error setting text content: ${error.message}`);
