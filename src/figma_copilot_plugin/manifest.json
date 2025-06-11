@@ -1,6 +1,6 @@
 {
-  "name": "Cursor MCP Plugin",
-  "id": "cursor-mcp-plugin",
+  "name": "Figma Copilot Plugin",
+  "id": "figma-copilot-plugin",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

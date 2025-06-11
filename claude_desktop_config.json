@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "talk-to-figma": {
+      "command": "bunx",
+      "args": ["figma-copilot@latest"],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "talk-to-figma": {
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-c",
+        "cd /home/xlz/claude-dev/figma-copilot && bun run dist/server.js"
+      ],
+      "env": {}
+    }
+  }
+}
