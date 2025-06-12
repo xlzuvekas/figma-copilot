@@ -1,0 +1,47 @@
+# Source files
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Configuration files
+tsconfig.json
+tsup.config.ts
+.cursor/
+claude_desktop_config*.json
+smithery.yaml
+
+# Development files
+scripts/
+docs/
+*.md
+!readme.md
+README.md
+
+# Git files
+.git/
+.gitignore
+
+# Lock files
+bun.lockb
+bun.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+*.test.*
+*.spec.*
+
+# Build artifacts
+*.log
+node_modules/
+.env
+.env.*

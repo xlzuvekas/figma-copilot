@@ -6,6 +6,10 @@ An enhanced Model Context Protocol (MCP) integration between Cursor AI and Figma
 
 This project is based on [cursor-talk-to-figma-mcp](https://github.com/sonnylazuardi/cursor-talk-to-figma-mcp) by Sonny Lazuardi.
 
+## Disclaimer
+
+This is an independent project and is not affiliated with, officially maintained, authorized, endorsed, or sponsored by Figma, Inc. All product and company names are trademarks™ or registered® trademarks of their respective holders.
+
 ## Key Enhancements
 
 - **Fixed "Cannot unwrap symbol" error** when working with mixed fonts

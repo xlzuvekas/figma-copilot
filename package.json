@@ -1,7 +1,24 @@
 {
   "name": "figma-copilot",
-  "description": "Enhanced Figma MCP server with improved font handling and additional features",
+  "description": "Enhanced Figma MCP server with improved font handling and additional features. Unofficial tool, not affiliated with Figma, Inc.",
   "version": "0.2.4",
+  "author": "xlzuvekas",
+  "license": "MIT",
+  "keywords": [
+    "figma",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "cursor",
+    "claude",
+    "figma-plugin",
+    "automation",
+    "design-tools"
+  ],
+  "homepage": "https://github.com/xlzuvekas/figma-copilot#readme",
+  "bugs": {
+    "url": "https://github.com/xlzuvekas/figma-copilot/issues"
+  },
   "module": "dist/server.js",
   "main": "dist/server.js",
   "repository": {
@@ -13,7 +30,7 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "readme.md"
   ],
   "type": "module",
   "scripts": {
