@@ -133,8 +133,24 @@ async function handleCommand(command, params) {
       return await setSlideGrid(params);
     case "get_focused_slide":
       return await getFocusedSlide();
+    case "get_slide_transition":
+      return await getSlideTransition(params);
+    case "set_slide_transition":
+      return await setSlideTransition(params);
+    case "get_slides_mode":
+      return await getSlidesMode();
+    case "set_slides_mode":
+      return await setSlidesMode(params);
+    case "get_slide_grid":
+      return await getSlideGrid();
     case "create_text":
       return await createText(params);
+    case "create_shape_with_text":
+      return await createShapeWithText(params);
+    case "create_table":
+      return await createTable(params);
+    case "create_gif":
+      return await createGif(params);
     case "set_fill_color":
       return await setFillColor(params);
     case "set_stroke_color":
@@ -320,6 +336,18 @@ function filterFigmaNode(node) {
     name: node.name,
     type: node.type,
   };
+
+  // Handle slide-specific node types
+  if (node.type === "SLIDE") {
+    filtered.width = 1920;
+    filtered.height = 1080;
+  } else if (node.type === "INTERACTIVE_SLIDE_ELEMENT") {
+    filtered.interactiveSlideElementType = node.interactiveSlideElementType;
+    filtered.x = node.x;
+    filtered.y = node.y;
+    filtered.width = node.width;
+    filtered.height = node.height;
+  }
 
   if (node.fills && node.fills.length > 0) {
     filtered.fills = node.fills.map((fill) => {
@@ -988,6 +1016,166 @@ async function getFocusedSlide() {
   };
 }
 
+async function getSlideTransition(params) {
+  const { slideId } = params || {};
+
+  // Check if we're in Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("getSlideTransition can only be used in Figma Slides documents");
+  }
+
+  if (!slideId) {
+    throw new Error("Missing slideId parameter");
+  }
+
+  const slide = await figma.getNodeByIdAsync(slideId);
+  if (!slide) {
+    throw new Error(`Slide not found with ID: ${slideId}`);
+  }
+
+  if (slide.type !== "SLIDE") {
+    throw new Error(`Node is not a slide: ${slideId}`);
+  }
+
+  const transition = slide.getSlideTransition();
+  return {
+    slideId: slideId,
+    transition: transition
+  };
+}
+
+async function setSlideTransition(params) {
+  const { slideId, transition } = params || {};
+
+  // Check if we're in Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("setSlideTransition can only be used in Figma Slides documents");
+  }
+
+  if (!slideId) {
+    throw new Error("Missing slideId parameter");
+  }
+
+  if (!transition) {
+    throw new Error("Missing transition parameter");
+  }
+
+  const slide = await figma.getNodeByIdAsync(slideId);
+  if (!slide) {
+    throw new Error(`Slide not found with ID: ${slideId}`);
+  }
+
+  if (slide.type !== "SLIDE") {
+    throw new Error(`Node is not a slide: ${slideId}`);
+  }
+
+  // Validate transition properties
+  const validStyles = [
+    'NONE', 'DISSOLVE', 'SLIDE_FROM_LEFT', 'SLIDE_FROM_RIGHT',
+    'SLIDE_FROM_TOP', 'SLIDE_FROM_BOTTOM', 'PUSH_FROM_LEFT',
+    'PUSH_FROM_RIGHT', 'PUSH_FROM_TOP', 'PUSH_FROM_BOTTOM',
+    'MOVE_FROM_LEFT', 'MOVE_FROM_RIGHT', 'MOVE_FROM_TOP',
+    'MOVE_FROM_BOTTOM', 'SLIDE_OUT_TO_LEFT', 'SLIDE_OUT_TO_RIGHT',
+    'SLIDE_OUT_TO_TOP', 'SLIDE_OUT_TO_BOTTOM', 'MOVE_OUT_TO_LEFT',
+    'MOVE_OUT_TO_RIGHT', 'MOVE_OUT_TO_TOP', 'MOVE_OUT_TO_BOTTOM',
+    'SMART_ANIMATE'
+  ];
+
+  const validCurves = [
+    'LINEAR', 'EASE_IN', 'EASE_OUT', 'EASE_IN_AND_OUT',
+    'EASE_IN_BACK', 'EASE_OUT_BACK', 'EASE_IN_AND_OUT_BACK'
+  ];
+
+  if (transition.style && !validStyles.includes(transition.style)) {
+    throw new Error(`Invalid transition style: ${transition.style}`);
+  }
+
+  if (transition.curve && !validCurves.includes(transition.curve)) {
+    throw new Error(`Invalid transition curve: ${transition.curve}`);
+  }
+
+  if (transition.duration !== undefined && (transition.duration < 0.01 || transition.duration > 10)) {
+    throw new Error("Transition duration must be between 0.01 and 10 seconds");
+  }
+
+  if (transition.timing && transition.timing.type !== 'ON_CLICK' && transition.timing.type !== 'AFTER_DELAY') {
+    throw new Error("Invalid timing type. Must be 'ON_CLICK' or 'AFTER_DELAY'");
+  }
+
+  if (transition.timing && transition.timing.type === 'AFTER_DELAY' && transition.timing.delay !== undefined) {
+    if (transition.timing.delay < 0 || transition.timing.delay > 30) {
+      throw new Error("Transition delay must be between 0 and 30 seconds");
+    }
+  }
+
+  slide.setSlideTransition(transition);
+
+  return {
+    success: true,
+    slideId: slideId,
+    transition: slide.getSlideTransition()
+  };
+}
+
+async function getSlidesMode() {
+  // Check if we're in Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("getSlidesMode can only be used in Figma Slides documents");
+  }
+
+  return {
+    mode: figma.viewport.slidesMode
+  };
+}
+
+async function setSlidesMode(params) {
+  const { mode } = params || {};
+
+  // Check if we're in Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("setSlidesMode can only be used in Figma Slides documents");
+  }
+
+  if (!mode) {
+    throw new Error("Missing mode parameter");
+  }
+
+  if (mode !== 'grid' && mode !== 'single-slide') {
+    throw new Error("Invalid mode. Must be 'grid' or 'single-slide'");
+  }
+
+  figma.viewport.slidesMode = mode;
+
+  return {
+    success: true,
+    mode: figma.viewport.slidesMode
+  };
+}
+
+async function getSlideGrid() {
+  // Check if we're in Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("getSlideGrid can only be used in Figma Slides documents");
+  }
+
+  const grid = figma.currentPage.getSlideGrid();
+  
+  // Convert slide nodes to basic info
+  const gridInfo = grid.map(row => 
+    row.map(slide => ({
+      id: slide.id,
+      name: slide.name,
+      type: slide.type
+    }))
+  );
+
+  return {
+    grid: gridInfo,
+    totalSlides: grid.flat().length,
+    rows: grid.length
+  };
+}
+
 async function createText(params) {
   const {
     x = 0,
@@ -1083,6 +1271,238 @@ async function createText(params) {
     fills: textNode.fills,
     parentId: textNode.parent ? textNode.parent.id : undefined,
   };
+}
+
+async function createShapeWithText(params) {
+  const {
+    x = 0,
+    y = 0,
+    width = 200,
+    height = 100,
+    shapeType = "RECTANGLE",
+    text = "Shape Text",
+    fillColor,
+    strokeColor,
+    strokeWeight,
+    fontSize = "16",
+    fontWeight = "Regular",
+    fontColor = { r: 0, g: 0, b: 0, a: 1 },
+    name = "Shape with Text",
+    parentId
+  } = params || {};
+
+  // Check if we're in Figma Slides or FigJam
+  if (figma.editorType !== "slides" && figma.editorType !== "figjam") {
+    throw new Error("createShapeWithText is only available in Figma Slides and FigJam");
+  }
+
+  const shapeWithText = figma.createShapeWithText();
+  shapeWithText.x = x;
+  shapeWithText.y = y;
+  shapeWithText.resize(width, height);
+  shapeWithText.name = name;
+  shapeWithText.shapeType = shapeType;
+
+  // Set shape fill color if provided
+  if (fillColor) {
+    const paintStyle = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(fillColor.r) || 0,
+        g: parseFloat(fillColor.g) || 0,
+        b: parseFloat(fillColor.b) || 0,
+      },
+      opacity: parseFloat(fillColor.a) || 1,
+    };
+    shapeWithText.fills = [paintStyle];
+  }
+
+  // Set stroke if provided
+  if (strokeColor) {
+    const strokeStyle = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(strokeColor.r) || 0,
+        g: parseFloat(strokeColor.g) || 0,
+        b: parseFloat(strokeColor.b) || 0,
+      },
+      opacity: parseFloat(strokeColor.a) || 1,
+    };
+    shapeWithText.strokes = [strokeStyle];
+  }
+
+  if (strokeWeight !== undefined) {
+    shapeWithText.strokeWeight = strokeWeight;
+  }
+
+  // Set text
+  try {
+    await figma.loadFontAsync({
+      family: "Inter",
+      style: getFontStyle(fontWeight),
+    });
+    shapeWithText.text.fontName = { family: "Inter", style: getFontStyle(fontWeight) };
+    shapeWithText.text.fontSize = parseInt(fontSize);
+    shapeWithText.text.characters = text;
+
+    // Set text color
+    const textPaintStyle = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(fontColor.r) || 0,
+        g: parseFloat(fontColor.g) || 0,
+        b: parseFloat(fontColor.b) || 0,
+      },
+      opacity: parseFloat(fontColor.a) || 1,
+    };
+    shapeWithText.text.fills = [textPaintStyle];
+  } catch (error) {
+    console.error("Error setting text properties:", error);
+  }
+
+  // Append to parent or current page
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) {
+      throw new Error(`Parent node not found with ID: ${parentId}`);
+    }
+    if (!("appendChild" in parentNode)) {
+      throw new Error(`Parent node does not support children: ${parentId}`);
+    }
+    parentNode.appendChild(shapeWithText);
+  } else {
+    figma.currentPage.appendChild(shapeWithText);
+  }
+
+  return {
+    id: shapeWithText.id,
+    name: shapeWithText.name,
+    x: shapeWithText.x,
+    y: shapeWithText.y,
+    width: shapeWithText.width,
+    height: shapeWithText.height,
+    shapeType: shapeWithText.shapeType,
+    text: shapeWithText.text.characters,
+    parentId: shapeWithText.parent ? shapeWithText.parent.id : undefined,
+  };
+}
+
+async function createTable(params) {
+  const {
+    x = 0,
+    y = 0,
+    rows = 3,
+    columns = 3,
+    cellWidth = 100,
+    cellHeight = 40,
+    name = "Table",
+    parentId
+  } = params || {};
+
+  // Check if we're in Figma Slides or Design
+  if (figma.editorType !== "slides" && figma.editorType !== "figma") {
+    throw new Error("createTable is only available in Figma Design and Slides");
+  }
+
+  const table = figma.createTable();
+  table.x = x;
+  table.y = y;
+  table.name = name;
+  
+  // Resize the table to accommodate the cells
+  table.resize(columns * cellWidth, rows * cellHeight);
+
+  // Create cells
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      const cell = table.cellAt(row, col);
+      if (cell) {
+        cell.resize(cellWidth, cellHeight);
+      }
+    }
+  }
+
+  // Append to parent or current page
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) {
+      throw new Error(`Parent node not found with ID: ${parentId}`);
+    }
+    if (!("appendChild" in parentNode)) {
+      throw new Error(`Parent node does not support children: ${parentId}`);
+    }
+    parentNode.appendChild(table);
+  } else {
+    figma.currentPage.appendChild(table);
+  }
+
+  return {
+    id: table.id,
+    name: table.name,
+    x: table.x,
+    y: table.y,
+    width: table.width,
+    height: table.height,
+    rows: rows,
+    columns: columns,
+    parentId: table.parent ? table.parent.id : undefined,
+  };
+}
+
+async function createGif(params) {
+  const {
+    url,
+    x = 0,
+    y = 0,
+    width = 300,
+    height = 200,
+    name = "GIF",
+    parentId
+  } = params || {};
+
+  // Check if we're in Figma Slides or FigJam
+  if (figma.editorType !== "slides" && figma.editorType !== "figjam") {
+    throw new Error("createGif is only available in Figma Slides and FigJam");
+  }
+
+  if (!url) {
+    throw new Error("Missing url parameter for GIF");
+  }
+
+  try {
+    const gif = await figma.createGifAsync(url);
+    gif.x = x;
+    gif.y = y;
+    gif.resize(width, height);
+    gif.name = name;
+
+    // Append to parent or current page
+    if (parentId) {
+      const parentNode = await figma.getNodeByIdAsync(parentId);
+      if (!parentNode) {
+        throw new Error(`Parent node not found with ID: ${parentId}`);
+      }
+      if (!("appendChild" in parentNode)) {
+        throw new Error(`Parent node does not support children: ${parentId}`);
+      }
+      parentNode.appendChild(gif);
+    } else {
+      figma.currentPage.appendChild(gif);
+    }
+
+    return {
+      id: gif.id,
+      name: gif.name,
+      x: gif.x,
+      y: gif.y,
+      width: gif.width,
+      height: gif.height,
+      url: url,
+      parentId: gif.parent ? gif.parent.id : undefined,
+    };
+  } catch (error) {
+    throw new Error(`Failed to create GIF: ${error.message}`);
+  }
 }
 
 async function setFillColor(params) {
@@ -1275,6 +1695,17 @@ async function deleteNode(params) {
 }
 
 async function getStyles() {
+  // Check if we're in Figma Slides
+  if (figma.editorType === "slides") {
+    return {
+      error: "Styles are not supported in Figma Slides",
+      colors: [],
+      texts: [],
+      effects: [],
+      grids: []
+    };
+  }
+
   const styles = {
     colors: await figma.getLocalPaintStylesAsync(),
     texts: await figma.getLocalTextStylesAsync(),
@@ -1310,6 +1741,15 @@ async function getStyles() {
 }
 
 async function getLocalComponents() {
+  // Check if we're in Figma Slides
+  if (figma.editorType === "slides") {
+    return {
+      error: "Components are not supported in Figma Slides",
+      count: 0,
+      components: []
+    };
+  }
+
   await figma.loadAllPagesAsync();
 
   const components = figma.root.findAllWithCriteria({
@@ -1347,6 +1787,11 @@ async function getLocalComponents() {
 
 async function createComponentInstance(params) {
   const { componentKey, x = 0, y = 0 } = params || {};
+
+  // Check if we're in Figma Slides
+  if (figma.editorType === "slides") {
+    throw new Error("Components are not supported in Figma Slides");
+  }
 
   if (!componentKey) {
     throw new Error("Missing componentKey parameter");

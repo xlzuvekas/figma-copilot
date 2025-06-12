@@ -2586,7 +2586,15 @@ type FigmaCommand =
   | "create_slide"
   | "create_slide_row"
   | "set_slide_grid"
-  | "get_focused_slide";
+  | "get_focused_slide"
+  | "get_slide_transition"
+  | "set_slide_transition"
+  | "get_slides_mode"
+  | "set_slides_mode"
+  | "get_slide_grid"
+  | "create_shape_with_text"
+  | "create_table"
+  | "create_gif";
 
 type CommandParams = {
   get_document_info: Record<string, never>;
@@ -2744,6 +2752,61 @@ type CommandParams = {
     slides: string[][];
   };
   get_focused_slide: Record<string, never>;
+  get_slide_transition: {
+    slideId: string;
+  };
+  set_slide_transition: {
+    slideId: string;
+    transition: {
+      style?: string;
+      duration?: number;
+      curve?: string;
+      timing?: {
+        type: 'ON_CLICK' | 'AFTER_DELAY';
+        delay?: number;
+      };
+    };
+  };
+  get_slides_mode: Record<string, never>;
+  set_slides_mode: {
+    mode: 'grid' | 'single-slide';
+  };
+  get_slide_grid: Record<string, never>;
+  create_shape_with_text: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    shapeType?: string;
+    text?: string;
+    fillColor?: { r: number; g: number; b: number; a?: number };
+    strokeColor?: { r: number; g: number; b: number; a?: number };
+    strokeWeight?: number;
+    fontSize?: string;
+    fontWeight?: string;
+    fontColor?: { r: number; g: number; b: number; a?: number };
+    name?: string;
+    parentId?: string;
+  };
+  create_table: {
+    x?: number;
+    y?: number;
+    rows?: number;
+    columns?: number;
+    cellWidth?: number;
+    cellHeight?: number;
+    name?: string;
+    parentId?: string;
+  };
+  create_gif: {
+    url: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    name?: string;
+    parentId?: string;
+  };
 };
 
 
@@ -3121,6 +3184,271 @@ server.tool(
       };
     } catch (error) {
       throw new Error(`Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Get Slide Transition Tool (Figma Slides only)
+server.tool(
+  "get_slide_transition",
+  "Get the transition settings for a slide in Figma Slides",
+  {
+    slideId: z.string().describe("The ID of the slide"),
+  },
+  async ({ slideId }) => {
+    try {
+      const response = await sendCommandToFigma("get_slide_transition", {
+        slideId,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Slide transition: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get slide transition: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Set Slide Transition Tool (Figma Slides only)
+server.tool(
+  "set_slide_transition",
+  "Set the transition for a slide in Figma Slides",
+  {
+    slideId: z.string().describe("The ID of the slide"),
+    transition: z.object({
+      style: z.enum([
+        'NONE', 'DISSOLVE', 'SLIDE_FROM_LEFT', 'SLIDE_FROM_RIGHT',
+        'SLIDE_FROM_TOP', 'SLIDE_FROM_BOTTOM', 'PUSH_FROM_LEFT',
+        'PUSH_FROM_RIGHT', 'PUSH_FROM_TOP', 'PUSH_FROM_BOTTOM',
+        'MOVE_FROM_LEFT', 'MOVE_FROM_RIGHT', 'MOVE_FROM_TOP',
+        'MOVE_FROM_BOTTOM', 'SLIDE_OUT_TO_LEFT', 'SLIDE_OUT_TO_RIGHT',
+        'SLIDE_OUT_TO_TOP', 'SLIDE_OUT_TO_BOTTOM', 'MOVE_OUT_TO_LEFT',
+        'MOVE_OUT_TO_RIGHT', 'MOVE_OUT_TO_TOP', 'MOVE_OUT_TO_BOTTOM',
+        'SMART_ANIMATE'
+      ]).optional().describe("Transition style"),
+      duration: z.number().min(0.01).max(10).optional().describe("Duration in seconds (0.01-10)"),
+      curve: z.enum([
+        'LINEAR', 'EASE_IN', 'EASE_OUT', 'EASE_IN_AND_OUT',
+        'EASE_IN_BACK', 'EASE_OUT_BACK', 'EASE_IN_AND_OUT_BACK'
+      ]).optional().describe("Animation curve"),
+      timing: z.object({
+        type: z.enum(['ON_CLICK', 'AFTER_DELAY']).describe("Timing type"),
+        delay: z.number().min(0).max(30).optional().describe("Delay in seconds (0-30)"),
+      }).optional().describe("Timing configuration"),
+    }).describe("Transition configuration"),
+  },
+  async ({ slideId, transition }) => {
+    try {
+      const response = await sendCommandToFigma("set_slide_transition", {
+        slideId,
+        transition,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Slide transition updated: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set slide transition: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Get Slides Mode Tool (Figma Slides only)
+server.tool(
+  "get_slides_mode",
+  "Get the current viewport mode in Figma Slides (grid or single-slide)",
+  {},
+  async () => {
+    try {
+      const response = await sendCommandToFigma("get_slides_mode", {});
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Current slides mode: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get slides mode: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Set Slides Mode Tool (Figma Slides only)
+server.tool(
+  "set_slides_mode",
+  "Set the viewport mode in Figma Slides",
+  {
+    mode: z.enum(['grid', 'single-slide']).describe("Viewport mode"),
+  },
+  async ({ mode }) => {
+    try {
+      const response = await sendCommandToFigma("set_slides_mode", {
+        mode,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Slides mode set to: ${mode}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set slides mode: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Get Slide Grid Tool (Figma Slides only)
+server.tool(
+  "get_slide_grid",
+  "Get the current slide grid arrangement in Figma Slides",
+  {},
+  async () => {
+    try {
+      const response = await sendCommandToFigma("get_slide_grid", {});
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Slide grid: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get slide grid: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Create Shape with Text Tool
+server.tool(
+  "create_shape_with_text",
+  "Create a shape with text (available in Figma Slides and FigJam)",
+  {
+    x: z.number().optional().describe("X position"),
+    y: z.number().optional().describe("Y position"),
+    width: z.number().optional().describe("Width"),
+    height: z.number().optional().describe("Height"),
+    shapeType: z.string().optional().describe("Shape type (e.g., RECTANGLE, ELLIPSE)"),
+    text: z.string().optional().describe("Text content"),
+    fillColor: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)"),
+    }).optional().describe("Fill color"),
+    strokeColor: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)"),
+    }).optional().describe("Stroke color"),
+    strokeWeight: z.number().positive().optional().describe("Stroke weight"),
+    fontSize: z.string().optional().describe("Font size"),
+    fontWeight: z.string().optional().describe("Font weight"),
+    fontColor: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)"),
+    }).optional().describe("Text color"),
+    name: z.string().optional().describe("Name of the shape"),
+    parentId: z.string().optional().describe("Parent node ID"),
+  },
+  async (params) => {
+    try {
+      const response = await sendCommandToFigma("create_shape_with_text", params);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created shape with text: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to create shape with text: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Create Table Tool
+server.tool(
+  "create_table",
+  "Create a table (available in Figma Design and Slides)",
+  {
+    x: z.number().optional().describe("X position"),
+    y: z.number().optional().describe("Y position"),
+    rows: z.number().optional().describe("Number of rows"),
+    columns: z.number().optional().describe("Number of columns"),
+    cellWidth: z.number().optional().describe("Width of each cell"),
+    cellHeight: z.number().optional().describe("Height of each cell"),
+    name: z.string().optional().describe("Name of the table"),
+    parentId: z.string().optional().describe("Parent node ID"),
+  },
+  async (params) => {
+    try {
+      const response = await sendCommandToFigma("create_table", params);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created table: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to create table: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Create GIF Tool
+server.tool(
+  "create_gif",
+  "Create a GIF (available in Figma Slides and FigJam)",
+  {
+    url: z.string().describe("URL of the GIF"),
+    x: z.number().optional().describe("X position"),
+    y: z.number().optional().describe("Y position"),
+    width: z.number().optional().describe("Width"),
+    height: z.number().optional().describe("Height"),
+    name: z.string().optional().describe("Name of the GIF"),
+    parentId: z.string().optional().describe("Parent node ID"),
+  },
+  async (params) => {
+    try {
+      const response = await sendCommandToFigma("create_gif", params);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created GIF: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to create GIF: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 );
