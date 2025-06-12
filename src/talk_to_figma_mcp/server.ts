@@ -2582,7 +2582,11 @@ type FigmaCommand =
   | "set_item_spacing"
   | "get_reactions"
   | "set_default_connector"
-  | "create_connections";
+  | "create_connections"
+  | "create_slide"
+  | "create_slide_row"
+  | "set_slide_grid"
+  | "get_focused_slide";
 
 type CommandParams = {
   get_document_info: Record<string, never>;
@@ -2725,7 +2729,21 @@ type CommandParams = {
       text?: string;
     }>;
   };
-  
+  create_slide: {
+    name?: string;
+    parentId?: string;
+    fillColor?: { r: number; g: number; b: number; a?: number };
+    strokeColor?: { r: number; g: number; b: number; a?: number };
+    strokeWeight?: number;
+  };
+  create_slide_row: {
+    name?: string;
+    parentId?: string;
+  };
+  set_slide_grid: {
+    slides: string[][];
+  };
+  get_focused_slide: Record<string, never>;
 };
 
 
@@ -2858,7 +2876,7 @@ function connectToFigma(port: number = 3055) {
     }
   });
 
-  ws.on('error', (error) => {
+  ws.on('error', (error: Error) => {
     logger.error(`Socket error: ${error}`);
   });
 
@@ -2956,6 +2974,156 @@ function sendCommandToFigma(
     ws.send(JSON.stringify(request));
   });
 }
+
+// Create Slide Tool (Figma Slides only)
+server.tool(
+  "create_slide",
+  "Create a new slide in Figma Slides",
+  {
+    name: z.string().optional().describe("Optional name for the slide"),
+    parentId: z
+      .string()
+      .optional()
+      .describe("Optional parent SLIDE_ROW ID to append the slide to"),
+    fillColor: z
+      .object({
+        r: z.number().min(0).max(1).describe("Red component (0-1)"),
+        g: z.number().min(0).max(1).describe("Green component (0-1)"),
+        b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+        a: z
+          .number()
+          .min(0)
+          .max(1)
+          .optional()
+          .describe("Alpha component (0-1)"),
+      })
+      .optional()
+      .describe("Fill color in RGBA format"),
+    strokeColor: z
+      .object({
+        r: z.number().min(0).max(1).describe("Red component (0-1)"),
+        g: z.number().min(0).max(1).describe("Green component (0-1)"),
+        b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+        a: z
+          .number()
+          .min(0)
+          .max(1)
+          .optional()
+          .describe("Alpha component (0-1)"),
+      })
+      .optional()
+      .describe("Stroke color in RGBA format"),
+    strokeWeight: z.number().positive().optional().describe("Stroke weight"),
+  },
+  async ({ name, parentId, fillColor, strokeColor, strokeWeight }) => {
+    try {
+      const response = await sendCommandToFigma("create_slide", {
+        name,
+        parentId,
+        fillColor,
+        strokeColor,
+        strokeWeight,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created slide: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to create slide: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Create Slide Row Tool (Figma Slides only)
+server.tool(
+  "create_slide_row",
+  "Create a new slide row in Figma Slides",
+  {
+    name: z.string().optional().describe("Optional name for the slide row"),
+    parentId: z
+      .string()
+      .optional()
+      .describe("Optional parent node ID to append the slide row to"),
+  },
+  async ({ name, parentId }) => {
+    try {
+      const response = await sendCommandToFigma("create_slide_row", {
+        name,
+        parentId,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created slide row: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to create slide row: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Set Slide Grid Tool (Figma Slides only)
+server.tool(
+  "set_slide_grid",
+  "Rearrange slides into a grid layout in Figma Slides",
+  {
+    slides: z
+      .array(z.array(z.string()))
+      .describe(
+        "2D array of slide IDs representing the grid layout. Each inner array represents a row of slides."
+      ),
+  },
+  async ({ slides }) => {
+    try {
+      const response = await sendCommandToFigma("set_slide_grid", {
+        slides,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Slide grid updated: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set slide grid: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Get Focused Slide Tool (Figma Slides only)
+server.tool(
+  "get_focused_slide",
+  "Get the currently focused slide in Figma Slides",
+  {},
+  async () => {
+    try {
+      const response = await sendCommandToFigma("get_focused_slide", {});
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Focused slide: ${JSON.stringify(response)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
 
 // Update the join_channel tool
 server.tool(

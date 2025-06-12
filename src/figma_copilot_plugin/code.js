@@ -125,6 +125,14 @@ async function handleCommand(command, params) {
       return await createRectangle(params);
     case "create_frame":
       return await createFrame(params);
+    case "create_slide":
+      return await createSlide(params);
+    case "create_slide_row":
+      return await createSlideRow(params);
+    case "set_slide_grid":
+      return await setSlideGrid(params);
+    case "get_focused_slide":
+      return await getFocusedSlide();
     case "create_text":
       return await createText(params);
     case "set_fill_color":
@@ -799,6 +807,184 @@ async function createFrame(params) {
     layoutMode: frame.layoutMode,
     layoutWrap: frame.layoutWrap,
     parentId: frame.parent ? frame.parent.id : undefined,
+  };
+}
+
+async function createSlide(params) {
+  const {
+    name = "Slide",
+    parentId,
+    fillColor,
+    strokeColor,
+    strokeWeight,
+  } = params || {};
+
+  // Check if we're in a Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("createSlide can only be used in Figma Slides documents");
+  }
+
+  const slide = figma.createSlide();
+  slide.name = name;
+
+  // Set fill color if provided
+  if (fillColor) {
+    const paintStyle = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(fillColor.r) || 0,
+        g: parseFloat(fillColor.g) || 0,
+        b: parseFloat(fillColor.b) || 0,
+      },
+      opacity: parseFloat(fillColor.a) || 1,
+    };
+    slide.fills = [paintStyle];
+  }
+
+  // Set stroke color if provided
+  if (strokeColor) {
+    const strokeStyle = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(strokeColor.r) || 0,
+        g: parseFloat(strokeColor.g) || 0,
+        b: parseFloat(strokeColor.b) || 0,
+      },
+      opacity: parseFloat(strokeColor.a) || 1,
+    };
+    slide.strokes = [strokeStyle];
+  }
+
+  // Set stroke weight if provided
+  if (strokeWeight !== undefined) {
+    slide.strokeWeight = strokeWeight;
+  }
+
+  // If parentId is provided, append to that node (should be a SLIDE_ROW)
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) {
+      throw new Error(`Parent node not found with ID: ${parentId}`);
+    }
+    if (parentNode.type !== "SLIDE_ROW") {
+      throw new Error(`Parent node must be a SLIDE_ROW, got: ${parentNode.type}`);
+    }
+    parentNode.appendChild(slide);
+  } else {
+    // Find or create a slide row
+    const slideRows = figma.currentPage.children.filter(node => node.type === "SLIDE_ROW");
+    if (slideRows.length > 0) {
+      slideRows[0].appendChild(slide);
+    } else {
+      const slideRow = figma.createSlideRow();
+      figma.currentPage.appendChild(slideRow);
+      slideRow.appendChild(slide);
+    }
+  }
+
+  return {
+    id: slide.id,
+    name: slide.name,
+    type: slide.type,
+    width: slide.width,
+    height: slide.height,
+    fills: slide.fills,
+    strokes: slide.strokes,
+    strokeWeight: slide.strokeWeight,
+    parentId: slide.parent ? slide.parent.id : undefined,
+  };
+}
+
+async function createSlideRow(params) {
+  const { name = "Slide Row", parentId } = params || {};
+
+  // Check if we're in a Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("createSlideRow can only be used in Figma Slides documents");
+  }
+
+  const slideRow = figma.createSlideRow();
+  slideRow.name = name;
+
+  // Slide rows are typically added to the current page
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) {
+      throw new Error(`Parent node not found with ID: ${parentId}`);
+    }
+    if (!("appendChild" in parentNode)) {
+      throw new Error(`Parent node does not support children: ${parentId}`);
+    }
+    parentNode.appendChild(slideRow);
+  } else {
+    figma.currentPage.appendChild(slideRow);
+  }
+
+  return {
+    id: slideRow.id,
+    name: slideRow.name,
+    type: slideRow.type,
+    parentId: slideRow.parent ? slideRow.parent.id : undefined,
+  };
+}
+
+async function setSlideGrid(params) {
+  const { slides } = params || {};
+
+  // Check if we're in a Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("setSlideGrid can only be used in Figma Slides documents");
+  }
+
+  if (!slides || !Array.isArray(slides)) {
+    throw new Error("slides parameter must be an array of slide arrangements");
+  }
+
+  // Validate and convert slide IDs to nodes
+  const slideArrangements = [];
+  for (const row of slides) {
+    const slideNodes = [];
+    for (const slideId of row) {
+      const node = await figma.getNodeByIdAsync(slideId);
+      if (!node || node.type !== "SLIDE") {
+        throw new Error(`Invalid slide ID: ${slideId}`);
+      }
+      slideNodes.push(node);
+    }
+    slideArrangements.push(slideNodes);
+  }
+
+  // Apply the new slide grid arrangement
+  figma.currentPage.setSlideGrid(slideArrangements);
+
+  return {
+    success: true,
+    message: `Slide grid updated with ${slides.length} rows`,
+  };
+}
+
+async function getFocusedSlide() {
+  // Check if we're in a Figma Slides document
+  if (figma.editorType !== "slides") {
+    throw new Error("getFocusedSlide can only be used in Figma Slides documents");
+  }
+
+  const focusedSlide = figma.currentPage.focusedSlide;
+  if (!focusedSlide) {
+    return {
+      focusedSlide: null,
+      message: "No slide is currently focused",
+    };
+  }
+
+  return {
+    focusedSlide: {
+      id: focusedSlide.id,
+      name: focusedSlide.name,
+      type: focusedSlide.type,
+      width: focusedSlide.width,
+      height: focusedSlide.height,
+    },
   };
 }
 
@@ -3332,9 +3518,10 @@ async function setLayoutMode(params) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Check if node is a frame or component that supports layoutMode
+  // Check if node is a frame, slide, or component that supports layoutMode
   if (
     node.type !== "FRAME" &&
+    node.type !== "SLIDE" &&
     node.type !== "COMPONENT" &&
     node.type !== "COMPONENT_SET" &&
     node.type !== "INSTANCE"
@@ -3368,9 +3555,10 @@ async function setPadding(params) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Check if node is a frame or component that supports padding
+  // Check if node is a frame, slide, or component that supports padding
   if (
     node.type !== "FRAME" &&
+    node.type !== "SLIDE" &&
     node.type !== "COMPONENT" &&
     node.type !== "COMPONENT_SET" &&
     node.type !== "INSTANCE"
@@ -3410,9 +3598,10 @@ async function setAxisAlign(params) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Check if node is a frame or component that supports axis alignment
+  // Check if node is a frame, slide, or component that supports axis alignment
   if (
     node.type !== "FRAME" &&
+    node.type !== "SLIDE" &&
     node.type !== "COMPONENT" &&
     node.type !== "COMPONENT_SET" &&
     node.type !== "INSTANCE"
@@ -3476,9 +3665,10 @@ async function setLayoutSizing(params) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Check if node is a frame or component that supports layout sizing
+  // Check if node is a frame, slide, or component that supports layout sizing
   if (
     node.type !== "FRAME" &&
+    node.type !== "SLIDE" &&
     node.type !== "COMPONENT" &&
     node.type !== "COMPONENT_SET" &&
     node.type !== "INSTANCE"
@@ -3503,7 +3693,7 @@ async function setLayoutSizing(params) {
     // HUG is only valid on auto-layout frames and text nodes
     if (
       layoutSizingHorizontal === "HUG" &&
-      !["FRAME", "TEXT"].includes(node.type)
+      !["FRAME", "SLIDE", "TEXT"].includes(node.type)
     ) {
       throw new Error(
         "HUG sizing is only valid on auto-layout frames and text nodes"
@@ -3563,9 +3753,10 @@ async function setItemSpacing(params) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Check if node is a frame or component that supports item spacing
+  // Check if node is a frame, slide, or component that supports item spacing
   if (
     node.type !== "FRAME" &&
+    node.type !== "SLIDE" &&
     node.type !== "COMPONENT" &&
     node.type !== "COMPONENT_SET" &&
     node.type !== "INSTANCE"
