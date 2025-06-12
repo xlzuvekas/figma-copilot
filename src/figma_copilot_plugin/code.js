@@ -1367,8 +1367,15 @@ async function setTextContent(params) {
     throw new Error(`Node not found with ID: ${nodeId}`);
   }
 
-  if (node.type !== "TEXT") {
-    throw new Error(`Node is not a text node: ${nodeId}`);
+  // Handle both TEXT nodes and TABLE_CELL nodes
+  let textNode;
+  if (node.type === "TEXT") {
+    textNode = node;
+  } else if (node.type === "TABLE_CELL") {
+    textNode = node.text; // Access the text sublayer
+    console.log(`Handling TABLE_CELL node ${nodeId}, accessing text sublayer`);
+  } else {
+    throw new Error(`Node is not a text node or table cell: ${nodeId} (type: ${node.type})`);
   }
 
   try {
@@ -1379,7 +1386,7 @@ async function setTextContent(params) {
     
     try {
       // Safe way to get all fonts without triggering the symbol error
-      fontsToLoad = node.getRangeAllFontNames(0, node.characters.length);
+      fontsToLoad = textNode.getRangeAllFontNames(0, textNode.characters.length);
       console.log(`Found ${fontsToLoad.length} fonts in text node:`, fontsToLoad.map(f => `${f.family} ${f.style}`));
       hasMixedFonts = fontsToLoad.length > 1;
     } catch (e) {
@@ -1387,7 +1394,7 @@ async function setTextContent(params) {
     }
 
     // Check if node has missing fonts before trying to load
-    if (node.hasMissingFont) {
+    if (textNode.hasMissingFont) {
       console.warn("Text node has missing fonts - will use fallback strategy");
     } else if (fontsToLoad.length > 0) {
       // Try to load all fonts, but continue even if some fail
@@ -1404,9 +1411,9 @@ async function setTextContent(params) {
     // Now use setCharacters with appropriate strategy
     const fallbackFont = { family: "Inter", style: "Regular" };
     
-    if (hasMixedFonts || node.hasMissingFont) {
+    if (hasMixedFonts || textNode.hasMissingFont) {
       // Mixed fonts or missing fonts - use smart strategy
-      const success = await setCharacters(node, text, { 
+      const success = await setCharacters(textNode, text, { 
         smartStrategy: "prevail",
         fallbackFont: fallbackFont
       });
@@ -1416,7 +1423,7 @@ async function setTextContent(params) {
       }
     } else {
       // Single font case - simpler handling
-      await setCharacters(node, text, { 
+      await setCharacters(textNode, text, { 
         fallbackFont: fallbackFont 
       });
     }
@@ -1425,8 +1432,8 @@ async function setTextContent(params) {
     let safeFontName = fallbackFont;
     try {
       // Only try to access fontName after we've set the text
-      if (node.fontName !== figma.mixed) {
-        safeFontName = node.fontName;
+      if (textNode.fontName !== figma.mixed) {
+        safeFontName = textNode.fontName;
       }
     } catch (e) {
       // Even this check can throw, so we catch it
@@ -1436,7 +1443,7 @@ async function setTextContent(params) {
     return {
       id: node.id,
       name: node.name,
-      characters: node.characters,
+      characters: textNode.characters,
       fontName: safeFontName,
     };
   } catch (error) {
@@ -2257,19 +2264,30 @@ async function setMultipleTextContents(params) {
           };
         }
 
-        if (textNode.type !== "TEXT") {
+        // Handle both TEXT nodes and TABLE_CELL nodes
+        let textToUpdate;
+        let originalText;
+        
+        if (textNode.type === "TEXT") {
+          textToUpdate = textNode;
+          originalText = textNode.characters;
+        } else if (textNode.type === "TABLE_CELL") {
+          // Table cells have a text sublayer
+          textToUpdate = textNode.text;
+          originalText = textToUpdate.characters;
+          console.log(`Handling TABLE_CELL node ${replacement.nodeId}, accessing text sublayer`);
+        } else {
           console.error(
-            `Node is not a text node: ${replacement.nodeId} (type: ${textNode.type})`
+            `Node is not a text node or table cell: ${replacement.nodeId} (type: ${textNode.type})`
           );
           return {
             success: false,
             nodeId: replacement.nodeId,
-            error: `Node is not a text node: ${replacement.nodeId} (type: ${textNode.type})`,
+            error: `Node is not a text node or table cell: ${replacement.nodeId} (type: ${textNode.type})`,
           };
         }
 
         // Save original text for the result
-        const originalText = textNode.characters;
         console.log(`Original text: "${originalText}"`);
         console.log(`Will translate to: "${replacement.text}"`);
 
