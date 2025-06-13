@@ -574,7 +574,7 @@ async function getReactions(nodeIds) {
     async function highlightNodeWithAnimation(node) {
       // Save original stroke properties
       const originalStrokeWeight = node.strokeWeight;
-      const originalStrokes = node.strokes ? [...node.strokes] : [];
+      const originalStrokes = node.strokes ? node.strokes.slice() : [];
       
       try {
         // Apply orange border stroke
@@ -1394,7 +1394,7 @@ async function getSlideGrid() {
       }
       
       // Sort slides by position to determine grid structure
-      const sortedSlides = [...slides].sort((a, b) => {
+      const sortedSlides = slides.slice().sort((a, b) => {
         if (Math.abs(a.y - b.y) < 10) {
           return a.x - b.x; // Same row, sort by x
         }
@@ -2633,8 +2633,8 @@ async function setTextContent(params) {
 
 function uniqBy(arr, predicate) {
   const cb = typeof predicate === "function" ? predicate : (o) => o[predicate];
-  return [
-    ...arr
+  return Array.from(
+    arr
       .reduce((map, item) => {
         const key = item === null || item === undefined ? item : cb(item);
 
@@ -2825,7 +2825,7 @@ const setCharactersWithSmartMatchFont = async (
     style,
   }));
 
-  await Promise.all([...fontsToLoad, fallbackFont].map(figma.loadFontAsync));
+  await Promise.all(fontsToLoad.concat(fallbackFont).map(figma.loadFontAsync));
 
   node.fontName = fallbackFont;
   node.characters = characters;
@@ -3069,7 +3069,7 @@ async function scanTextNodes(params) {
     }
 
     // Add results from this chunk
-    allTextNodes.push(...chunkTextNodes);
+    allTextNodes.push.apply(allTextNodes, chunkTextNodes);
     processedNodes += chunkNodes.length;
     chunksProcessed++;
 
@@ -3135,7 +3135,7 @@ async function collectNodesToProcess(
   if (node.visible === false) return;
 
   // Get the path to this node
-  const nodePath = [...parentPath, node.name || `Unnamed ${node.type}`];
+  const nodePath = parentPath.concat(node.name || `Unnamed ${node.type}`);
 
   // Add this node to the processing list
   nodesToProcess.push({
@@ -3227,7 +3227,7 @@ async function findTextNodes(node, parentPath = [], depth = 0, textNodes = []) {
   if (node.visible === false) return;
 
   // Get the path to this node including its name
-  const nodePath = [...parentPath, node.name || `Unnamed ${node.type}`];
+  const nodePath = parentPath.concat(node.name || `Unnamed ${node.type}`);
 
   if (node.type === "TEXT") {
     try {
@@ -3773,7 +3773,7 @@ async function smartTextReplace(params) {
   
   // Build new text and formatting mapping
   let newText = originalText;
-  let newFormatting = [...formatting];
+  let newFormatting = formatting.slice();
   
   // Process replacements
   for (const replacement of replacements) {
@@ -3793,14 +3793,14 @@ async function smartTextReplace(params) {
       // Use formatting from first character of found text
       const baseFormat = newFormatting[index] || {};
       for (let i = 0; i < replace.length; i++) {
-        replaceFormatting.push({...baseFormat});
+        replaceFormatting.push(Object.assign({}, baseFormat));
       }
       
       // Replace text
       newText = newText.substring(0, index) + replace + newText.substring(index + find.length);
       
       // Update formatting array
-      newFormatting.splice(index, find.length, ...replaceFormatting);
+      newFormatting.splice.apply(newFormatting, [index, find.length].concat(replaceFormatting));
       
       // Continue searching
       offset = index + replace.length;
@@ -4069,7 +4069,7 @@ async function cloneMultipleNodes(params) {
     });
     
     const chunkResults = await Promise.all(chunkPromises);
-    results.push(...chunkResults);
+    results.push.apply(results, chunkResults);
     
     processedCount += chunk.length;
     
