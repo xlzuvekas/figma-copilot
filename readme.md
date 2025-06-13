@@ -1,6 +1,6 @@
 # Figma Copilot
 
-An enhanced Model Context Protocol (MCP) integration between Cursor AI and Figma, allowing Cursor to communicate with Figma for reading designs and modifying them programmatically. This project includes improved font handling, better error recovery, and additional features.
+A Model Context Protocol (MCP) server that enables AI assistants to interact with Figma designs programmatically. Compatible with any MCP client including Cursor, Claude Desktop, and other MCP-enabled applications. Features advanced text handling, batch operations, and comprehensive design automation capabilities.
 
 ## Credits
 
@@ -12,18 +12,25 @@ This is an independent project and is not affiliated with, officially maintained
 
 ## Key Enhancements
 
+### v0.3.2 (Latest)
+- **Text Formatting Preservation** - Text updates no longer lose formatting (bold, italic, colors, fonts)
+- **Batch Operations** - 50-90% performance improvement for bulk operations
+- **Enhanced Error Handling** - Specific, actionable error messages with suggestions
+- **Timeout Solutions** - New scanning options with depth control and partial results
+- **Smart Text Operations** - Find/replace with formatting preservation
+
+### Previous Enhancements
 - **Fixed "Cannot unwrap symbol" error** when working with mixed fonts
 - **Improved font loading** with `getRangeAllFontNames()` API
 - **Better error handling** with `Promise.allSettled()` for font loading
 - **Safe value returns** to avoid serialization issues
 - **Enhanced logging** for debugging font issues
 
-https://github.com/user-attachments/assets/129a14d2-ed73-470f-9a4c-2240b2a4885c
 
 ## Project Structure
 
 - `src/talk_to_figma_mcp/` - TypeScript MCP server for Figma integration
-- `src/figma_copilot_plugin/` - Figma plugin for communicating with Cursor
+- `src/figma_copilot_plugin/` - Figma plugin for communicating with MCP clients
 - `src/socket.ts` - WebSocket server that facilitates communication between the MCP server and Figma plugin
 
 ## Get Started
@@ -34,7 +41,7 @@ https://github.com/user-attachments/assets/129a14d2-ed73-470f-9a4c-2240b2a4885c
 curl -fsSL https://bun.sh/install | bash
 ```
 
-2. Run setup, this will also install MCP in your Cursor's active project
+2. Run setup to configure MCP
 
 ```bash
 bun setup
@@ -54,30 +61,41 @@ bunx figma-copilot
 
 5. **NEW** Install Figma plugin from [Figma community page](https://www.figma.com/community/plugin/1485687494525374295/cursor-talk-to-figma-mcp-plugin) or [install locally](#figma-plugin)
 
-## Quick Video Tutorial
+## Quick Start Guide
 
-[Video Link](https://www.linkedin.com/posts/sonnylazuardi_just-wanted-to-share-my-latest-experiment-activity-7307821553654657024-yrh8)
+Video tutorials coming soon!
 
 ## Design Automation Example
 
 **Bulk text content replacement**
 
-Thanks to [@dusskapark](https://github.com/dusskapark) for contributing the bulk text replacement feature. Here is the [demo video](https://www.youtube.com/watch?v=j05gGT3xfCs).
+Thanks to [@dusskapark](https://github.com/dusskapark) for contributing the bulk text replacement feature.
 
 **Instance Override Propagation**
 Another contribution from [@dusskapark](https://github.com/dusskapark)
-Propagate component instance overrides from a source instance to multiple target instances with a single command. This feature dramatically reduces repetitive design work when working with component instances that need similar customizations. Check out our [demo video](https://youtu.be/uvuT8LByroI).
+Propagate component instance overrides from a source instance to multiple target instances with a single command. This feature dramatically reduces repetitive design work when working with component instances that need similar customizations.
+
+## Performance Improvements (v0.3.2)
+
+Based on real production usage with bulk infographic creation:
+
+| Operation | Before v0.3.2 | After v0.3.2 | Improvement |
+|-----------|---------------|--------------|-------------|
+| Clone 20 nodes | 50 seconds | 5 seconds | 90% faster |
+| Update 112 text nodes | 15 minutes | 30 seconds | 96% faster |
+| Scan large document | Timeout after 30s | 3 seconds | No timeouts |
+| Text + formatting update | 2 separate calls | 1 combined call | 50% fewer API calls |
 
 ## Manual Setup and Installation
 
-### MCP Server: Integration with Cursor
+### MCP Server: Integration with MCP Clients
 
-Add the server to your Cursor MCP configuration in `~/.cursor/mcp.json`:
+Add the server to your MCP client configuration. For example, in Cursor's `~/.cursor/mcp.json` or Claude Desktop's configuration:
 
 ```json
 {
   "mcpServers": {
-    "TalkToFigma": {
+    "figma-copilot": {
       "command": "bunx",
       "args": ["figma-copilot@latest"]
     }
@@ -124,10 +142,10 @@ bun socket
 ## Usage
 
 1. Start the WebSocket server
-2. Install the MCP server in Cursor
-3. Open Figma and run the Cursor MCP Plugin
+2. Install the MCP server in your MCP client
+3. Open Figma and run the Figma Copilot Plugin
 4. Connect the plugin to the WebSocket server by joining a channel using `join_channel`
-5. Use Cursor to communicate with Figma using the MCP tools
+5. Use your MCP client to communicate with Figma using the MCP tools
 
 ## MCP Tools
 
@@ -160,11 +178,31 @@ The MCP server provides the following tools for interacting with Figma:
 - `create_frame` - Create a new frame with position, size, and optional name
 - `create_text` - Create a new text node with customizable font properties
 
-### Modifying text content
+### Text Operations
 
+#### Basic Text Operations
 - `scan_text_nodes` - Scan text nodes with intelligent chunking for large designs
-- `set_text_content` - Set the text content of a single text node
-- `set_multiple_text_contents` - Batch update multiple text nodes efficiently
+- `scan_nodes_with_options` - Enhanced scanning with depth control, timeout handling, and partial results
+- `set_text_content` - Set the text content of a single text node (Note: loses formatting)
+- `set_multiple_text_contents` - Batch update multiple text nodes efficiently (Note: loses formatting)
+
+#### Text with Formatting Preservation (v0.3.2)
+- `update_text_preserve_formatting` - Update text while preserving all character formatting (bold, italic, colors, fonts)
+- `smart_text_replace` - Find and replace text while preserving formatting of unchanged portions
+- `set_multiple_text_contents_with_styles` - Batch update text with formatting in a single operation
+
+#### Text Styling
+- `set_text_style_range` - Apply text styling (bold, italic, underline, strikethrough) to specific character ranges
+- `get_text_style_range` - Get text styling for a specific range
+- `set_text_decoration_range` - Set advanced text decoration properties
+- `get_text_decoration_range` - Get text decoration properties for a range
+- `set_range_font` - Change font family and style for a text range
+- `set_range_font_size` - Change font size for a text range
+- `set_range_fills` - Set text color for a specific range
+- `get_styled_text_segments` - Get detailed information about text segments and their properties
+- `set_component_description` - Set component description using Markdown
+- `get_component_description` - Get component description in Markdown format
+- `normalize_markdown` - Normalize Markdown text to Figma's supported subset
 
 ### Auto Layout & Spacing
 
@@ -187,6 +225,14 @@ The MCP server provides the following tools for interacting with Figma:
 - `delete_node` - Delete a node
 - `delete_multiple_nodes` - Delete multiple nodes at once efficiently
 - `clone_node` - Create a copy of an existing node with optional position offset
+
+### Batch Operations (v0.3.2)
+
+- `clone_multiple_nodes` - Clone a node to multiple positions in one operation (50-90% faster than individual clones)
+- `get_multiple_nodes_info` - Get information for multiple nodes in a single request
+- `set_multiple_nodes_property` - Set the same property value on multiple nodes at once
+- `execute_batch` - Execute multiple different commands in sequence with a single round-trip
+- `get_connection_status` - Get current connection status and statistics
 
 ### Components & Styles
 
@@ -214,6 +260,9 @@ The MCP server includes several helper prompts to guide you through complex desi
 - `annotation_conversion_strategy` - Strategy for converting manual annotations to Figma's native annotations
 - `swap_overrides_instances` - Strategy for transferring overrides between component instances in Figma
 - `reaction_to_connector_strategy` - Strategy for converting Figma prototype reactions to connector lines using the output of 'get_reactions', and guiding the use 'create_connections' in sequence
+- `batch_operations_guide` - Best practices for efficient bulk operations in Figma (v0.3.2)
+- `error_recovery_guide` - How to handle common errors and timeouts in Figma operations (v0.3.2)
+- `text_formatting_guide` - Best practices for updating text while preserving formatting (v0.3.2)
 
 ## Development
 
@@ -268,6 +317,18 @@ When working with the Figma MCP:
 ### Font Issues
 
 If you encounter "Cannot unwrap symbol" errors when updating text, this is likely due to mixed fonts in text nodes. See [Font Handling Documentation](docs/FONT_HANDLING.md) for details on how the plugin handles mixed fonts and available strategies.
+
+### Timeout Issues
+
+For large documents that cause timeouts, use `scan_nodes_with_options` with depth limiting and partial results. See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for optimization strategies.
+
+## Documentation
+
+- [Batch Operations Guide](docs/BATCH_OPERATIONS.md) - Learn how to use batch operations for massive performance gains
+- [Enhanced Text Operations Guide](docs/ENHANCED_TEXT_OPERATIONS.md) - Preserve formatting while updating text
+- [Text Styling Guide](docs/TEXT_STYLING.md) - Apply and manage text styles
+- [Font Handling Documentation](docs/FONT_HANDLING.md) - Handle mixed fonts and font loading strategies
+- [Changelog v0.3.2](CHANGELOG_v0.3.2.md) - Latest release notes
 
 ## License
 
