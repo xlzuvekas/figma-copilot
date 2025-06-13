@@ -2542,6 +2542,178 @@ This detailed process ensures you correctly interpret the reaction data, prepare
   }
 );
 
+// Batch operations best practices prompt
+server.prompt(
+  "batch_operations_guide",
+  "Best practices for efficient bulk operations in Figma",
+  () => ({
+    messages: [{
+      role: "assistant",
+      content: {
+        type: "text",
+        text: `When performing multiple similar operations in Figma, follow these best practices:
+
+1. Use Batch Tools for Performance:
+   - clone_multiple_nodes: Clone to multiple positions in one call
+   - get_multiple_nodes_info: Read multiple nodes at once
+   - execute_batch: Run multiple different commands together
+   
+   Example - Cloning efficiently:
+   // Instead of:
+   clone_node("1:5", 41, 3267)
+   clone_node("1:5", 41, 3709)
+   clone_node("1:5", 41, 4151)
+   
+   // Use:
+   clone_multiple_nodes({
+     sourceNodeId: "1:5",
+     positions: [
+       {x: 41, y: 3267},
+       {x: 41, y: 3709},
+       {x: 41, y: 4151}
+     ]
+   })
+
+2. Handle Large Documents:
+   - If scan_text_nodes times out, use scan_nodes_with_options
+   - Set maxDepth: 3 for faster scanning
+   - Use returnPartialOnTimeout: true to get partial results
+
+3. Optimize Text Updates:
+   - Group updates by parent node
+   - Use set_multiple_text_contents for bulk updates
+   - Use update_text_preserve_formatting to maintain styles
+   - Use set_multiple_text_contents_with_styles for text + formatting
+
+4. Monitor Performance:
+   - Check get_connection_status if operations are slow
+   - Use execute_batch for mixed operations
+   - Batch similar operations together
+
+5. Common Formulas:
+   - Grid Y-position: y = baseY + (rowIndex * spacing)
+   - Grid X-position: x = baseX + (colIndex * spacing)
+   - Example: y = 173 + (442 * row_number)`
+      }
+    }]
+  })
+);
+
+// Error recovery guide prompt
+server.prompt(
+  "error_recovery_guide", 
+  "How to handle common errors and timeouts in Figma operations",
+  () => ({
+    messages: [{
+      role: "assistant",
+      content: {
+        type: "text",
+        text: `Common Figma operation errors and solutions:
+
+1. Timeout Errors:
+   - scan_text_nodes timeout → Use scan_nodes_with_options with maxDepth:3
+   - Large document timeout → Break into smaller operations
+   - Connection timeout → Check get_connection_status, rejoin channel
+   
+   Example fix for scan timeout:
+   scan_nodes_with_options({
+     nodeId: "1:2",
+     options: {
+       maxDepth: 3,
+       nodeTypes: ["TEXT"],
+       timeout: 30000,
+       returnPartialOnTimeout: true
+     }
+   })
+
+2. Node Not Found:
+   - Verify node exists with get_node_info
+   - Check if node was deleted
+   - Ensure using correct parent ID
+
+3. Text Update Failures:
+   - Silent failures → Validate node is TEXT type first
+   - Formatting loss → Use update_text_preserve_formatting
+   - Mixed fonts → Handle with font loading strategies
+   - Character limit → Check text length before update
+
+4. Batch Operation Errors:
+   - Use execute_batch with stopOnError:false
+   - Check individual operation results
+   - Retry failed operations individually
+
+5. Performance Issues:
+   - Monitor with get_connection_status
+   - Reduce batch sizes if operations fail
+   - Use shallow scanning for large documents
+   - Process in chunks for better progress tracking`
+      }
+    }]
+  })
+);
+
+// Text formatting best practices prompt
+server.prompt(
+  "text_formatting_guide",
+  "Best practices for updating text while preserving formatting",
+  () => ({
+    messages: [{
+      role: "assistant", 
+      content: {
+        type: "text",
+        text: `When updating text in Figma, preserve formatting using these strategies:
+
+1. Preserve Formatting on Updates:
+   - Use update_text_preserve_formatting instead of set_text_content
+   - Choose strategy: "stretch", "repeat", or "reset_overflow"
+   - For templates, capture formatting first with get_styled_text_segments
+
+2. Batch Updates with Styles:
+   - Use set_multiple_text_contents_with_styles for efficiency
+   - Apply text and formatting in one operation
+   - Reduces API calls by 50%+
+
+3. Smart Replacements:
+   - Use smart_text_replace for find/replace operations
+   - Preserves formatting of unchanged text
+   - Ideal for updating template placeholders
+
+4. Formatting Strategies:
+   - "stretch": Proportionally extend formatting (good for similar length)
+   - "repeat": Repeat pattern for longer text
+   - "reset_overflow": Keep existing, use defaults for new
+
+5. Common Patterns:
+   // Update template with formatting preserved
+   update_text_preserve_formatting({
+     nodeId: "123:45",
+     newText: "New Product Launch 2024",
+     preserveFormattingStrategy: "stretch"
+   })
+   
+   // Smart find/replace
+   smart_text_replace({
+     nodeId: "123:45",
+     replacements: [
+       {find: "{TITLE}", replace: "My Title"},
+       {find: "{DATE}", replace: "2024"}
+     ]
+   })
+   
+   // Batch update with styles
+   set_multiple_text_contents_with_styles({
+     nodeId: parentId,
+     updates: [{
+       nodeId: "123:45",
+       text: "Bold Title",
+       styles: [{start: 0, end: 4, bold: true}]
+     }]
+   })`
+      }
+    }]
+  })
+);
+
 
 // Define command types and parameters
 type FigmaCommand =
@@ -2605,7 +2777,16 @@ type FigmaCommand =
   | "get_styled_text_segments"
   | "set_component_description"
   | "get_component_description"
-  | "normalize_markdown";
+  | "normalize_markdown"
+  | "update_text_preserve_formatting"
+  | "smart_text_replace"
+  | "set_multiple_text_contents_with_styles"
+  | "clone_multiple_nodes"
+  | "get_multiple_nodes_info"
+  | "set_multiple_nodes_property"
+  | "scan_nodes_with_options"
+  | "get_connection_status"
+  | "execute_batch";
 
 type CommandParams = {
   get_document_info: Record<string, never>;
@@ -2881,6 +3062,70 @@ type CommandParams = {
   };
   normalize_markdown: {
     markdown: string;
+  };
+  update_text_preserve_formatting: {
+    nodeId: string;
+    newText: string;
+    preserveFormattingStrategy?: "stretch" | "repeat" | "reset_overflow";
+  };
+  smart_text_replace: {
+    nodeId: string;
+    replacements: Array<{
+      find: string;
+      replace: string;
+      matchCase?: boolean;
+    }>;
+  };
+  set_multiple_text_contents_with_styles: {
+    nodeId: string;
+    updates: Array<{
+      nodeId: string;
+      text: string;
+      styles?: Array<{
+        start: number;
+        end: number;
+        bold?: boolean;
+        italic?: boolean;
+        fontSize?: number;
+        fontFamily?: string;
+        fontStyle?: string;
+        fills?: any[];
+      }>;
+    }>;
+  };
+  clone_multiple_nodes: {
+    sourceNodeId: string;
+    positions: Array<{
+      x: number;
+      y: number;
+    }>;
+    parentId?: string;
+  };
+  get_multiple_nodes_info: {
+    nodeIds: string[];
+  };
+  set_multiple_nodes_property: {
+    nodeIds: string[];
+    property: string;
+    value: any;
+  };
+  scan_nodes_with_options: {
+    nodeId: string;
+    options?: {
+      maxDepth?: number;
+      nodeTypes?: string[];
+      timeout?: number;
+      returnPartialOnTimeout?: boolean;
+      includeHidden?: boolean;
+    };
+  };
+  get_connection_status: Record<string, never>;
+  execute_batch: {
+    commands: Array<{
+      command: string;
+      params: any;
+    }>;
+    stopOnError?: boolean;
   };
 };
 
@@ -3900,6 +4145,281 @@ server.tool(
       };
     } catch (error) {
       throw new Error(`Failed to normalize markdown: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Text formatting preservation tools
+
+server.tool(
+  "update_text_preserve_formatting",
+  "Update text content while preserving existing character formatting. Choose a strategy for handling formatting when text length changes.",
+  {
+    nodeId: z.string().describe("The ID of the text node to update"),
+    newText: z.string().describe("The new text content"),
+    preserveFormattingStrategy: z.enum(["stretch", "repeat", "reset_overflow"]).optional()
+      .describe("Strategy for handling formatting when text length changes: 'stretch' proportionally extends formatting, 'repeat' repeats the pattern, 'reset_overflow' keeps existing formatting and uses defaults for new characters"),
+  },
+  async ({ nodeId, newText, preserveFormattingStrategy }) => {
+    try {
+      const result = await sendCommandToFigma("update_text_preserve_formatting", {
+        nodeId,
+        newText,
+        preserveFormattingStrategy,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Updated text while preserving formatting. Strategy: ${preserveFormattingStrategy || 'stretch'}. ${result.formattingRanges} formatting ranges preserved.`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to update text with formatting preservation: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "smart_text_replace",
+  "Replace specific text in a node while preserving the formatting of unchanged portions. Only replaced text gets default formatting.",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    replacements: z.array(z.object({
+      find: z.string().describe("Text to find"),
+      replace: z.string().describe("Replacement text"),
+      matchCase: z.boolean().optional().describe("Case sensitive match (default: true)"),
+    })).describe("Array of find/replace operations to perform"),
+  },
+  async ({ nodeId, replacements }) => {
+    try {
+      const result = await sendCommandToFigma("smart_text_replace", {
+        nodeId,
+        replacements,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Smart text replacement completed. ${result.replacementCount} replacements processed.`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to perform smart text replacement: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_multiple_text_contents_with_styles",
+  "Update multiple text nodes with content and optional styling in a single operation. More efficient than separate text and style updates.",
+  {
+    nodeId: z.string().describe("The parent node ID containing the text nodes"),
+    updates: z.array(z.object({
+      nodeId: z.string().describe("Text node ID to update"),
+      text: z.string().describe("New text content"),
+      styles: z.array(z.object({
+        start: z.number().describe("Start index of the range"),
+        end: z.number().describe("End index of the range"),
+        bold: z.boolean().optional().describe("Apply bold"),
+        italic: z.boolean().optional().describe("Apply italic"),
+        fontSize: z.number().optional().describe("Font size"),
+        fontFamily: z.string().optional().describe("Font family"),
+        fontStyle: z.string().optional().describe("Font style (e.g., Regular, Bold)"),
+        fills: z.array(z.any()).optional().describe("Fill colors"),
+      })).optional().describe("Optional styling to apply after text update"),
+    })).describe("Array of text updates with optional styling"),
+  },
+  async ({ nodeId, updates }) => {
+    try {
+      const result = await sendCommandToFigma("set_multiple_text_contents_with_styles", {
+        nodeId,
+        updates,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Updated ${result.totalUpdated} text nodes with content and styles. ${result.totalFailed} failed.`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set text contents with styles: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Batch operation tools
+
+server.tool(
+  "clone_multiple_nodes",
+  "Clone a node to multiple positions in one operation. Significantly faster than multiple individual clone operations.",
+  {
+    sourceNodeId: z.string().describe("The ID of the node to clone"),
+    positions: z.array(z.object({
+      x: z.number().describe("X position for the clone"),
+      y: z.number().describe("Y position for the clone"),
+    })).describe("Array of positions where clones should be placed"),
+    parentId: z.string().optional().describe("Parent node ID for all clones (optional)"),
+  },
+  async ({ sourceNodeId, positions, parentId }) => {
+    try {
+      const result = await sendCommandToFigma("clone_multiple_nodes", {
+        sourceNodeId,
+        positions,
+        parentId,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully cloned ${result.totalCloned} nodes. ${result.totalFailed} failed. Command ID: ${result.commandId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to clone multiple nodes: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_multiple_nodes_info",
+  "Get information for multiple nodes in a single request. More efficient than multiple individual get_node_info calls.",
+  {
+    nodeIds: z.array(z.string()).describe("Array of node IDs to get information for"),
+  },
+  async ({ nodeIds }) => {
+    try {
+      const result = await sendCommandToFigma("get_multiple_nodes_info", {
+        nodeIds,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Retrieved info for ${result.totalFound} nodes. ${result.totalNotFound} not found.\n${JSON.stringify(result.results, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_multiple_nodes_property",
+  "Set the same property value on multiple nodes at once. Useful for bulk updates like visibility, opacity, or position.",
+  {
+    nodeIds: z.array(z.string()).describe("Array of node IDs to update"),
+    property: z.string().describe("Property name to set (e.g., 'visible', 'opacity', 'x', 'y')"),
+    value: z.any().describe("Value to set for the property"),
+  },
+  async ({ nodeIds, property, value }) => {
+    try {
+      const result = await sendCommandToFigma("set_multiple_nodes_property", {
+        nodeIds,
+        property,
+        value,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Updated ${result.totalUpdated} nodes. ${result.totalFailed} failed.`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set property on multiple nodes: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "scan_nodes_with_options",
+  "Scan for nodes with advanced options including depth limit, timeout control, and partial results. Use this when scan_text_nodes times out.",
+  {
+    nodeId: z.string().describe("Root node ID to start scanning from"),
+    options: z.object({
+      maxDepth: z.number().optional().describe("Maximum depth to scan (-1 for unlimited, default: -1)"),
+      nodeTypes: z.array(z.string()).optional().describe("Node types to include (default: ['TEXT'])"),
+      timeout: z.number().optional().describe("Timeout in milliseconds (default: 30000)"),
+      returnPartialOnTimeout: z.boolean().optional().describe("Return partial results if timeout occurs (default: true)"),
+      includeHidden: z.boolean().optional().describe("Include hidden nodes (default: false)"),
+    }).optional().describe("Scanning options"),
+  },
+  async ({ nodeId, options }) => {
+    try {
+      const result = await sendCommandToFigma("scan_nodes_with_options", {
+        nodeId,
+        options,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Found ${result.totalFound} nodes in ${result.elapsed}ms. ${result.timedOut ? '(Timed out - partial results)' : ''}\n${JSON.stringify(result.nodes, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to scan nodes: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_connection_status",
+  "Get the current connection status and statistics for the Figma plugin connection",
+  {},
+  async () => {
+    try {
+      const result = await sendCommandToFigma("get_connection_status", {}) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Connection Status:\n- Connected: ${result.connected}\n- Plugin Active: ${result.pluginActive}\n- Document Open: ${result.documentOpen}\n- Editor Type: ${result.editorType}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get connection status: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "execute_batch",
+  "Execute multiple commands in sequence with a single round-trip. Ideal for complex operations that require multiple steps.",
+  {
+    commands: z.array(z.object({
+      command: z.string().describe("Command name to execute"),
+      params: z.any().describe("Parameters for the command"),
+    })).describe("Array of commands to execute in sequence"),
+    stopOnError: z.boolean().optional().describe("Stop execution if a command fails (default: false)"),
+  },
+  async ({ commands, stopOnError }) => {
+    try {
+      const result = await sendCommandToFigma("execute_batch", {
+        commands,
+        stopOnError,
+      }) as any;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Executed ${result.totalExecuted} commands. Succeeded: ${result.totalSucceeded}, Failed: ${result.totalFailed}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to execute batch: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 );

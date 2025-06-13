@@ -275,6 +275,24 @@ async function handleCommand(command, params) {
       return await getComponentDescription(params);
     case "normalize_markdown":
       return await normalizeMarkdown(params);
+    case "update_text_preserve_formatting":
+      return await updateTextPreserveFormatting(params);
+    case "smart_text_replace":
+      return await smartTextReplace(params);
+    case "set_multiple_text_contents_with_styles":
+      return await setMultipleTextContentsWithStyles(params);
+    case "clone_multiple_nodes":
+      return await cloneMultipleNodes(params);
+    case "get_multiple_nodes_info":
+      return await getMultipleNodesInfo(params);
+    case "set_multiple_nodes_property":
+      return await setMultipleNodesProperty(params);
+    case "scan_nodes_with_options":
+      return await scanNodesWithOptions(params);
+    case "get_connection_status":
+      return await getConnectionStatus(params);
+    case "execute_batch":
+      return await executeBatch(params);
     default:
       throw new Error(`Unknown command: ${command}`);
   }
@@ -3560,6 +3578,890 @@ async function setMultipleTextContents(params) {
     completedInChunks: chunks.length,
     commandId,
   };
+}
+
+// New text formatting preservation functions
+
+async function updateTextPreserveFormatting(params) {
+  const { nodeId, newText, preserveFormattingStrategy = "stretch" } = params || {};
+  
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+  
+  if (!newText && newText !== "") {
+    throw new Error("Missing newText parameter");
+  }
+  
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node || node.type !== 'TEXT') {
+    throw new Error(`Node ${nodeId} is not a text node`);
+  }
+
+  // Step 1: Capture current formatting
+  const oldText = node.characters;
+  const formatting = [];
+  
+  // Get all style properties for each character range
+  const styleProps = [
+    'fontSize', 'fontName', 'fontWeight', 'textDecoration',
+    'fills', 'letterSpacing', 'lineHeight', 'textCase'
+  ];
+  
+  let currentStart = 0;
+  while (currentStart < oldText.length) {
+    const currentStyle = {};
+    let rangeEnd = currentStart + 1;
+    
+    // Get style for current position
+    for (const prop of styleProps) {
+      try {
+        const value = node.getRangeProperty(currentStart, currentStart + 1, prop);
+        if (value !== figma.mixed) {
+          currentStyle[prop] = value;
+        }
+      } catch (e) {
+        // Property might not exist
+      }
+    }
+    
+    // Find how far this style extends
+    for (let i = currentStart + 1; i <= oldText.length; i++) {
+      let matches = true;
+      for (const prop of Object.keys(currentStyle)) {
+        try {
+          const value = node.getRangeProperty(i - 1, i, prop);
+          if (JSON.stringify(value) !== JSON.stringify(currentStyle[prop])) {
+            matches = false;
+            break;
+          }
+        } catch (e) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) {
+        rangeEnd = i - 1;
+        break;
+      }
+      rangeEnd = i;
+    }
+    
+    formatting.push({
+      start: currentStart,
+      end: rangeEnd,
+      style: currentStyle
+    });
+    
+    currentStart = rangeEnd;
+  }
+
+  // Step 2: Update text
+  // Load all fonts that might be needed
+  const fontsToLoad = new Set();
+  for (const format of formatting) {
+    if (format.style.fontName) {
+      fontsToLoad.add(format.style.fontName);
+    }
+  }
+  
+  // Also load current font as fallback
+  if (node.fontName !== figma.mixed) {
+    fontsToLoad.add(node.fontName);
+  }
+  
+  // Load fonts
+  for (const font of fontsToLoad) {
+    try {
+      await figma.loadFontAsync(font);
+    } catch (e) {
+      console.warn(`Failed to load font ${font.family} ${font.style}:`, e);
+    }
+  }
+  
+  // Update the text
+  node.characters = newText;
+
+  // Step 3: Reapply formatting based on strategy
+  for (const format of formatting) {
+    let start = format.start;
+    let end = format.end;
+    
+    if (preserveFormattingStrategy === "stretch") {
+      // Stretch formatting proportionally
+      const oldLength = oldText.length;
+      const newLength = newText.length;
+      if (oldLength > 0) {
+        start = Math.floor(format.start * newLength / oldLength);
+        end = Math.floor(format.end * newLength / oldLength);
+      }
+    } else if (preserveFormattingStrategy === "repeat") {
+      // Repeat pattern if new text is longer
+      // Keep as-is if shorter
+      end = Math.min(end, newText.length);
+    } else if (preserveFormattingStrategy === "reset_overflow") {
+      // Only apply to characters that existed before
+      if (start >= newText.length) continue;
+      end = Math.min(end, newText.length);
+    }
+    
+    // Ensure valid range
+    if (start >= newText.length || start >= end) continue;
+    end = Math.min(end, newText.length);
+    
+    // Apply each style property
+    for (const [prop, value] of Object.entries(format.style)) {
+      try {
+        if (prop === 'fontName' && value) {
+          await figma.loadFontAsync(value);
+        }
+        node.setRangeProperty(start, end, prop, value);
+      } catch (e) {
+        console.warn(`Failed to apply ${prop} to range ${start}-${end}:`, e);
+      }
+    }
+  }
+
+  return {
+    success: true,
+    nodeId,
+    oldLength: oldText.length,
+    newLength: newText.length,
+    formattingStrategy: preserveFormattingStrategy,
+    formattingRanges: formatting.length
+  };
+}
+
+async function smartTextReplace(params) {
+  const { nodeId, replacements, matchCase = true } = params || {};
+  
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+  
+  if (!replacements || !Array.isArray(replacements)) {
+    throw new Error("Missing or invalid replacements parameter");
+  }
+  
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node || node.type !== 'TEXT') {
+    throw new Error(`Node ${nodeId} is not a text node`);
+  }
+  
+  // Get current text and formatting
+  const originalText = node.characters;
+  const formatting = [];
+  
+  // Capture formatting for each character
+  for (let i = 0; i < originalText.length; i++) {
+    const charFormat = {};
+    const styleProps = ['fontSize', 'fontName', 'fontWeight', 'textDecoration', 'fills'];
+    
+    for (const prop of styleProps) {
+      try {
+        const value = node.getRangeProperty(i, i + 1, prop);
+        if (value !== figma.mixed) {
+          charFormat[prop] = value;
+        }
+      } catch (e) {
+        // Property might not exist
+      }
+    }
+    
+    formatting.push(charFormat);
+  }
+  
+  // Build new text and formatting mapping
+  let newText = originalText;
+  let newFormatting = [...formatting];
+  
+  // Process replacements
+  for (const replacement of replacements) {
+    const { find, replace } = replacement;
+    if (!find || replace === undefined) continue;
+    
+    const searchText = matchCase ? newText : newText.toLowerCase();
+    const searchFor = matchCase ? find : find.toLowerCase();
+    
+    let offset = 0;
+    let index = searchText.indexOf(searchFor, offset);
+    
+    while (index !== -1) {
+      // Calculate formatting for replacement
+      const replaceFormatting = [];
+      
+      // Use formatting from first character of found text
+      const baseFormat = newFormatting[index] || {};
+      for (let i = 0; i < replace.length; i++) {
+        replaceFormatting.push({...baseFormat});
+      }
+      
+      // Replace text
+      newText = newText.substring(0, index) + replace + newText.substring(index + find.length);
+      
+      // Update formatting array
+      newFormatting.splice(index, find.length, ...replaceFormatting);
+      
+      // Continue searching
+      offset = index + replace.length;
+      index = searchText.indexOf(searchFor, offset);
+    }
+  }
+  
+  // Load required fonts
+  const fontsToLoad = new Set();
+  for (const format of newFormatting) {
+    if (format.fontName) {
+      fontsToLoad.add(format.fontName);
+    }
+  }
+  
+  for (const font of fontsToLoad) {
+    try {
+      await figma.loadFontAsync(font);
+    } catch (e) {
+      console.warn(`Failed to load font:`, e);
+    }
+  }
+  
+  // Apply new text
+  node.characters = newText;
+  
+  // Apply formatting
+  let currentStart = 0;
+  while (currentStart < newText.length) {
+    const currentFormat = newFormatting[currentStart];
+    let rangeEnd = currentStart + 1;
+    
+    // Find how far this format extends
+    while (rangeEnd < newText.length && 
+           JSON.stringify(newFormatting[rangeEnd]) === JSON.stringify(currentFormat)) {
+      rangeEnd++;
+    }
+    
+    // Apply format to range
+    for (const [prop, value] of Object.entries(currentFormat)) {
+      try {
+        node.setRangeProperty(currentStart, rangeEnd, prop, value);
+      } catch (e) {
+        console.warn(`Failed to apply ${prop}:`, e);
+      }
+    }
+    
+    currentStart = rangeEnd;
+  }
+  
+  return {
+    success: true,
+    nodeId,
+    originalText,
+    newText,
+    replacementCount: replacements.length
+  };
+}
+
+async function setMultipleTextContentsWithStyles(params) {
+  const { nodeId, updates } = params || {};
+  
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+  
+  if (!updates || !Array.isArray(updates)) {
+    throw new Error("Missing or invalid updates parameter");
+  }
+  
+  const parentNode = await figma.getNodeByIdAsync(nodeId);
+  if (!parentNode) {
+    throw new Error(`Parent node not found: ${nodeId}`);
+  }
+  
+  const results = [];
+  
+  for (const update of updates) {
+    const { nodeId: textNodeId, text, styles } = update;
+    
+    try {
+      const textNode = await figma.getNodeByIdAsync(textNodeId);
+      if (!textNode || textNode.type !== 'TEXT') {
+        results.push({
+          nodeId: textNodeId,
+          success: false,
+          error: 'Not a text node'
+        });
+        continue;
+      }
+      
+      // Load fonts if needed
+      const fontsToLoad = new Set();
+      if (styles) {
+        for (const style of styles) {
+          if (style.fontFamily) {
+            fontsToLoad.add({
+              family: style.fontFamily,
+              style: style.fontStyle || 'Regular'
+            });
+          }
+        }
+      }
+      
+      for (const font of fontsToLoad) {
+        try {
+          await figma.loadFontAsync(font);
+        } catch (e) {
+          console.warn(`Failed to load font:`, e);
+        }
+      }
+      
+      // Update text
+      textNode.characters = text;
+      
+      // Apply styles
+      if (styles) {
+        for (const style of styles) {
+          const { start, end, bold, italic, fontSize, fontFamily, fills } = style;
+          
+          if (start !== undefined && end !== undefined) {
+            if (bold !== undefined) {
+              textNode.setRangeProperty(start, end, 'fontWeight', bold ? 700 : 400);
+            }
+            if (italic !== undefined) {
+              // Note: italic might need font style change
+              const currentFont = textNode.getRangeProperty(start, end, 'fontName');
+              if (currentFont && currentFont !== figma.mixed) {
+                const newStyle = italic ? 'Italic' : 'Regular';
+                try {
+                  await figma.loadFontAsync({
+                    family: currentFont.family,
+                    style: newStyle
+                  });
+                  textNode.setRangeProperty(start, end, 'fontName', {
+                    family: currentFont.family,
+                    style: newStyle
+                  });
+                } catch (e) {
+                  console.warn(`Failed to set italic:`, e);
+                }
+              }
+            }
+            if (fontSize !== undefined) {
+              textNode.setRangeProperty(start, end, 'fontSize', fontSize);
+            }
+            if (fontFamily) {
+              const fontStyle = style.fontStyle || 'Regular';
+              try {
+                await figma.loadFontAsync({ family: fontFamily, style: fontStyle });
+                textNode.setRangeProperty(start, end, 'fontName', {
+                  family: fontFamily,
+                  style: fontStyle
+                });
+              } catch (e) {
+                console.warn(`Failed to set font:`, e);
+              }
+            }
+            if (fills) {
+              textNode.setRangeProperty(start, end, 'fills', fills);
+            }
+          }
+        }
+      }
+      
+      results.push({
+        nodeId: textNodeId,
+        success: true
+      });
+      
+    } catch (error) {
+      results.push({
+        nodeId: textNodeId,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+  
+  return {
+    success: true,
+    results,
+    totalUpdated: results.filter(r => r.success).length,
+    totalFailed: results.filter(r => !r.success).length
+  };
+}
+
+// Batch operation functions
+
+async function cloneMultipleNodes(params) {
+  const { sourceNodeId, positions, parentId } = params || {};
+  
+  if (!sourceNodeId) {
+    throw new Error("Missing sourceNodeId parameter");
+  }
+  
+  if (!positions || !Array.isArray(positions)) {
+    throw new Error("Missing or invalid positions parameter");
+  }
+  
+  const sourceNode = await figma.getNodeByIdAsync(sourceNodeId);
+  if (!sourceNode) {
+    throw new Error(`Source node not found: ${sourceNodeId}`);
+  }
+  
+  const results = [];
+  const commandId = uuidv4();
+  const totalCount = positions.length;
+  
+  // Send initial progress
+  sendProgressUpdate(
+    commandId,
+    "clone_multiple_nodes",
+    "started",
+    0,
+    totalCount,
+    0,
+    `Starting to clone ${totalCount} nodes`
+  );
+  
+  // Process clones in chunks for better performance
+  const CHUNK_SIZE = 10;
+  const chunks = [];
+  for (let i = 0; i < positions.length; i += CHUNK_SIZE) {
+    chunks.push(positions.slice(i, i + CHUNK_SIZE));
+  }
+  
+  let processedCount = 0;
+  
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+    const chunk = chunks[chunkIndex];
+    
+    // Process chunk
+    const chunkPromises = chunk.map(async (position) => {
+      try {
+        const clone = sourceNode.clone();
+        
+        if (position.x !== undefined) clone.x = position.x;
+        if (position.y !== undefined) clone.y = position.y;
+        
+        // Handle parent attachment
+        if (parentId) {
+          const parentNode = await figma.getNodeByIdAsync(parentId);
+          if (parentNode && "appendChild" in parentNode) {
+            parentNode.appendChild(clone);
+          } else {
+            figma.currentPage.appendChild(clone);
+          }
+        } else {
+          figma.currentPage.appendChild(clone);
+        }
+        
+        return {
+          success: true,
+          id: clone.id,
+          name: clone.name,
+          position: { x: clone.x, y: clone.y }
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error.message,
+          position
+        };
+      }
+    });
+    
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults);
+    
+    processedCount += chunk.length;
+    
+    // Update progress
+    sendProgressUpdate(
+      commandId,
+      "clone_multiple_nodes",
+      "in_progress",
+      Math.round((processedCount / totalCount) * 100),
+      totalCount,
+      processedCount,
+      `Cloned ${processedCount}/${totalCount} nodes`
+    );
+  }
+  
+  // Final progress update
+  sendProgressUpdate(
+    commandId,
+    "clone_multiple_nodes",
+    "completed",
+    100,
+    totalCount,
+    totalCount,
+    `Successfully cloned ${results.filter(r => r.success).length} nodes`
+  );
+  
+  return {
+    success: true,
+    results,
+    totalCloned: results.filter(r => r.success).length,
+    totalFailed: results.filter(r => !r.success).length,
+    commandId
+  };
+}
+
+async function getMultipleNodesInfo(params) {
+  const { nodeIds } = params || {};
+  
+  if (!nodeIds || !Array.isArray(nodeIds)) {
+    throw new Error("Missing or invalid nodeIds parameter");
+  }
+  
+  const results = [];
+  
+  // Process in parallel for speed
+  const promises = nodeIds.map(async (nodeId) => {
+    try {
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        return {
+          nodeId,
+          success: false,
+          error: 'Node not found'
+        };
+      }
+      
+      // Return same structure as getNodeInfo
+      return {
+        nodeId,
+        success: true,
+        info: await getNodeInfoData(node)
+      };
+    } catch (error) {
+      return {
+        nodeId,
+        success: false,
+        error: error.message
+      };
+    }
+  });
+  
+  const nodeResults = await Promise.all(promises);
+  
+  return {
+    success: true,
+    results: nodeResults,
+    totalFound: nodeResults.filter(r => r.success).length,
+    totalNotFound: nodeResults.filter(r => !r.success).length
+  };
+}
+
+async function setMultipleNodesProperty(params) {
+  const { nodeIds, property, value } = params || {};
+  
+  if (!nodeIds || !Array.isArray(nodeIds)) {
+    throw new Error("Missing or invalid nodeIds parameter");
+  }
+  
+  if (!property) {
+    throw new Error("Missing property parameter");
+  }
+  
+  if (value === undefined) {
+    throw new Error("Missing value parameter");
+  }
+  
+  const results = [];
+  
+  for (const nodeId of nodeIds) {
+    try {
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        results.push({
+          nodeId,
+          success: false,
+          error: 'Node not found'
+        });
+        continue;
+      }
+      
+      // Special handling for certain properties
+      if (property === 'fills' || property === 'strokes') {
+        node[property] = value;
+      } else if (property === 'visible' || property === 'locked') {
+        node[property] = value;
+      } else if (property === 'opacity') {
+        node.opacity = value;
+      } else if (property === 'x' || property === 'y') {
+        node[property] = value;
+      } else if (property === 'width' || property === 'height') {
+        if ('resize' in node) {
+          if (property === 'width') {
+            node.resize(value, node.height);
+          } else {
+            node.resize(node.width, value);
+          }
+        }
+      } else {
+        // Try to set property directly
+        node[property] = value;
+      }
+      
+      results.push({
+        nodeId,
+        success: true
+      });
+      
+    } catch (error) {
+      results.push({
+        nodeId,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+  
+  return {
+    success: true,
+    results,
+    totalUpdated: results.filter(r => r.success).length,
+    totalFailed: results.filter(r => !r.success).length
+  };
+}
+
+async function scanNodesWithOptions(params) {
+  const { 
+    nodeId, 
+    options = {} 
+  } = params || {};
+  
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+  
+  const {
+    maxDepth = -1,
+    nodeTypes = ["TEXT"],
+    timeout = 30000,
+    returnPartialOnTimeout = true,
+    includeHidden = false
+  } = options;
+  
+  const startTime = Date.now();
+  const results = [];
+  const visited = new Set();
+  
+  async function scanNode(node, depth = 0) {
+    // Check timeout
+    if (Date.now() - startTime > timeout) {
+      if (returnPartialOnTimeout) {
+        return;
+      } else {
+        throw new Error(`Scan timed out after ${timeout}ms. Found ${results.length} nodes so far.`);
+      }
+    }
+    
+    // Check depth limit
+    if (maxDepth !== -1 && depth > maxDepth) {
+      return;
+    }
+    
+    // Skip if already visited (circular reference protection)
+    if (visited.has(node.id)) {
+      return;
+    }
+    visited.add(node.id);
+    
+    // Check visibility
+    if (!includeHidden && !node.visible) {
+      return;
+    }
+    
+    // Check if node matches requested types
+    if (nodeTypes.includes(node.type)) {
+      results.push({
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        depth,
+        characters: node.type === 'TEXT' ? node.characters : undefined
+      });
+    }
+    
+    // Recursively scan children
+    if ("children" in node) {
+      for (const child of node.children) {
+        await scanNode(child, depth + 1);
+      }
+    }
+  }
+  
+  try {
+    const rootNode = await figma.getNodeByIdAsync(nodeId);
+    if (!rootNode) {
+      throw new Error(`Node not found: ${nodeId}`);
+    }
+    
+    await scanNode(rootNode, 0);
+    
+    const elapsed = Date.now() - startTime;
+    
+    return {
+      success: true,
+      nodes: results,
+      totalFound: results.length,
+      elapsed,
+      timedOut: elapsed >= timeout,
+      options: {
+        maxDepth,
+        nodeTypes,
+        timeout,
+        includeHidden
+      }
+    };
+    
+  } catch (error) {
+    if (error.message.includes('timed out') && returnPartialOnTimeout) {
+      return {
+        success: true,
+        nodes: results,
+        totalFound: results.length,
+        elapsed: Date.now() - startTime,
+        timedOut: true,
+        partial: true,
+        options: {
+          maxDepth,
+          nodeTypes,
+          timeout,
+          includeHidden
+        }
+      };
+    }
+    throw error;
+  }
+}
+
+async function getConnectionStatus(params) {
+  // This would normally check WebSocket status
+  // For now, return basic info
+  return {
+    connected: true,
+    pluginActive: true,
+    documentOpen: !!figma.currentPage,
+    editorType: figma.editorType,
+    timestamp: Date.now()
+  };
+}
+
+async function executeBatch(params) {
+  const { commands, stopOnError = false } = params || {};
+  
+  if (!commands || !Array.isArray(commands)) {
+    throw new Error("Missing or invalid commands parameter");
+  }
+  
+  const results = [];
+  const commandId = uuidv4();
+  const totalCount = commands.length;
+  
+  // Send initial progress
+  sendProgressUpdate(
+    commandId,
+    "execute_batch",
+    "started",
+    0,
+    totalCount,
+    0,
+    `Starting batch execution of ${totalCount} commands`
+  );
+  
+  for (let i = 0; i < commands.length; i++) {
+    const { command, params: cmdParams } = commands[i];
+    
+    try {
+      const result = await handleCommand(command, cmdParams);
+      results.push({
+        index: i,
+        command,
+        success: true,
+        result
+      });
+    } catch (error) {
+      results.push({
+        index: i,
+        command,
+        success: false,
+        error: error.message
+      });
+      
+      if (stopOnError) {
+        break;
+      }
+    }
+    
+    // Update progress
+    sendProgressUpdate(
+      commandId,
+      "execute_batch",
+      "in_progress",
+      Math.round(((i + 1) / totalCount) * 100),
+      totalCount,
+      i + 1,
+      `Executed ${i + 1}/${totalCount} commands`
+    );
+  }
+  
+  // Final progress
+  sendProgressUpdate(
+    commandId,
+    "execute_batch",
+    "completed",
+    100,
+    totalCount,
+    totalCount,
+    `Batch execution completed`
+  );
+  
+  return {
+    success: true,
+    results,
+    totalExecuted: results.length,
+    totalSucceeded: results.filter(r => r.success).length,
+    totalFailed: results.filter(r => !r.success).length,
+    commandId
+  };
+}
+
+// Helper function for getNodeInfo
+async function getNodeInfoData(node) {
+  const info = {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    visible: node.visible,
+  };
+
+  // Add type-specific properties
+  if (node.type === "TEXT") {
+    info.characters = node.characters;
+    info.fontSize = node.fontSize;
+    info.fontName = node.fontName;
+  }
+
+  if ("x" in node) info.x = node.x;
+  if ("y" in node) info.y = node.y;
+  if ("width" in node) info.width = node.width;
+  if ("height" in node) info.height = node.height;
+  if ("fills" in node) info.fills = node.fills;
+  if ("strokes" in node) info.strokes = node.strokes;
+  if ("opacity" in node) info.opacity = node.opacity;
+
+  // Add children info if it's a container
+  if ("children" in node) {
+    info.children = node.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      type: child.type,
+      visible: child.visible,
+    }));
+  }
+
+  return info;
 }
 
 // Text styling functions
