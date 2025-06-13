@@ -2,7 +2,7 @@
   "name": "Figma Copilot Plugin",
   "id": "figma-copilot-plugin",
   "api": "1.0.0",
-  "main": "code.js",
+  "main": "code.transpiled.js",
   "ui": "ui.html",
   "editorType": [
     "figma",

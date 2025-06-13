@@ -73,8 +73,9 @@ hostname: "0.0.0.0",
 
 ### Testing Figma Plugin Changes
 1. Edit `src/figma_copilot_plugin/code.js` and `ui.html`
-2. Reload plugin in Figma (Plugins > Development > [Plugin Name] > Run)
-3. No build step required for plugin changes
+2. Run `npm run build:plugin` to transpile modern JS to ES5 for Figma compatibility
+3. Reload plugin in Figma (Plugins > Development > [Plugin Name] > Run)
+4. Plugin uses `code.transpiled.js` (ES5) instead of `code.js` (ES6+)
 
 ## Important Considerations
 

@@ -1,7 +1,7 @@
 {
   "name": "figma-copilot",
   "description": "Enhanced Figma MCP server with improved font handling and additional features. Unofficial tool, not affiliated with Figma, Inc.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "xlzuvekas",
   "license": "MIT",
   "keywords": [
@@ -37,12 +37,16 @@
     "start": "bun run dist/server.js",
     "socket": "bun run src/socket.ts",
     "setup": "./scripts/setup.sh",
-    "build": "tsup",
+    "build": "tsup && npm run build:plugin",
+    "build:plugin": "babel src/figma_copilot_plugin/code.js --out-file src/figma_copilot_plugin/code.transpiled.js && echo 'Plugin transpiled to ES5 for Figma compatibility'",
     "build:watch": "tsup --watch",
     "dev": "bun run build:watch",
     "pub:release": "bun run build && npm publish"
   },
   "devDependencies": {
+    "@babel/cli": "^7.27.2",
+    "@babel/core": "^7.27.4",
+    "@babel/preset-env": "^7.27.2",
     "@figma/plugin-typings": "^1.113.0",
     "@types/bun": "latest",
     "@types/ws": "^8.18.1",
