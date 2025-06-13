@@ -1076,76 +1076,71 @@ async function setSlideGrid(params) {
   }
 
   try {
-    // Check if setSlideGrid method exists
-    if (typeof figma.currentPage.setSlideGrid === 'function') {
-      // Validate and convert slide IDs to nodes
-      const slideArrangements = [];
-      for (const row of slides) {
-        const slideNodes = [];
-        for (const slideId of row) {
-          const node = await figma.getNodeByIdAsync(slideId);
-          if (!node || node.type !== "SLIDE") {
-            throw new Error(`Invalid slide ID: ${slideId}`);
-          }
-          slideNodes.push(node);
+    // Validate and convert slide IDs to nodes first
+    const slideArrangements = [];
+    for (const row of slides) {
+      const slideNodes = [];
+      for (const slideId of row) {
+        const node = await figma.getNodeByIdAsync(slideId);
+        if (!node || node.type !== "SLIDE") {
+          throw new Error(`Invalid slide ID: ${slideId}`);
         }
-        slideArrangements.push(slideNodes);
+        slideNodes.push(node);
       }
+      slideArrangements.push(slideNodes);
+    }
 
+    // Try the correct API method first (on figma object directly)
+    if (typeof figma.setSlideGrid === 'function') {
+      // Apply the new slide grid arrangement
+      figma.setSlideGrid(slideArrangements);
+
+      return {
+        success: true,
+        message: `Slide grid updated with ${slides.length} rows`,
+        method: 'figma.setSlideGrid'
+      };
+    } 
+    // Try the old API method as second fallback
+    else if (typeof figma.currentPage.setSlideGrid === 'function') {
       // Apply the new slide grid arrangement
       figma.currentPage.setSlideGrid(slideArrangements);
 
       return {
         success: true,
         message: `Slide grid updated with ${slides.length} rows`,
+        method: 'figma.currentPage.setSlideGrid'
       };
     } else {
-      // Fallback implementation: manually arrange slides
-      const slideGrid = figma.currentPage.findOne(n => n.type === 'SLIDE_GRID');
-      if (!slideGrid) {
-        throw new Error('No slide grid found in current page');
-      }
+      // Manual fallback implementation: manually arrange slides by position
       
       // Constants for slide spacing (based on standard slide dimensions)
       const SLIDE_WIDTH = 1920;
       const SLIDE_HEIGHT = 1080;
-      const HORIZONTAL_SPACING = 240;
-      const VERTICAL_SPACING = 240;
-      const INITIAL_X = 240;
-      const INITIAL_Y = 240;
+      const SPACING = 240;
+      const START_X = 240;
+      const START_Y = 240;
       
-      let currentY = INITIAL_Y;
-      let successCount = 0;
+      let updatedCount = 0;
       
       for (let rowIndex = 0; rowIndex < slides.length; rowIndex++) {
         const row = slides[rowIndex];
-        let currentX = INITIAL_X;
-        
         for (let colIndex = 0; colIndex < row.length; colIndex++) {
           const slideId = row[colIndex];
-          const node = await figma.getNodeByIdAsync(slideId);
+          const slide = await figma.getNodeByIdAsync(slideId);
           
-          if (!node || node.type !== "SLIDE") {
-            console.warn(`Skipping invalid slide ID: ${slideId}`);
-            continue;
+          if (slide && slide.type === 'SLIDE') {
+            slide.x = START_X + (colIndex * (SLIDE_WIDTH + SPACING));
+            slide.y = START_Y + (rowIndex * (SLIDE_HEIGHT + SPACING));
+            updatedCount++;
           }
-          
-          // Position the slide
-          node.x = currentX;
-          node.y = currentY;
-          successCount++;
-          
-          // Move to next column position
-          currentX += SLIDE_WIDTH + HORIZONTAL_SPACING;
         }
-        
-        // Move to next row position
-        currentY += SLIDE_HEIGHT + VERTICAL_SPACING;
       }
       
       return {
         success: true,
-        message: `Manually arranged ${successCount} slides in ${slides.length} rows`,
+        message: `Manually positioned ${updatedCount} slides in ${slides.length} rows`,
+        method: 'manual'
       };
     }
   } catch (error) {
@@ -1362,8 +1357,30 @@ async function getSlideGrid() {
   }
 
   try {
-    // Check if getSlideGrid method exists
-    if (typeof figma.currentPage.getSlideGrid === 'function') {
+    // Try the correct API method first (on figma object directly)
+    if (typeof figma.getSlideGrid === 'function') {
+      const grid = figma.getSlideGrid();
+      
+      // Convert slide nodes to basic info
+      const gridInfo = grid.map(row => 
+        row.map(slide => ({
+          id: slide.id,
+          name: slide.name,
+          type: slide.type,
+          x: slide.x,
+          y: slide.y
+        }))
+      );
+
+      return {
+        grid: gridInfo,
+        totalSlides: grid.flat().length,
+        rows: grid.length,
+        method: 'figma.getSlideGrid'
+      };
+    } 
+    // Try the old API method as second fallback
+    else if (typeof figma.currentPage.getSlideGrid === 'function') {
       const grid = figma.currentPage.getSlideGrid();
       
       // Convert slide nodes to basic info
@@ -1371,63 +1388,68 @@ async function getSlideGrid() {
         row.map(slide => ({
           id: slide.id,
           name: slide.name,
-          type: slide.type
+          type: slide.type,
+          x: slide.x,
+          y: slide.y
         }))
       );
 
       return {
         grid: gridInfo,
         totalSlides: grid.flat().length,
-        rows: grid.length
+        rows: grid.length,
+        method: 'figma.currentPage.getSlideGrid'
       };
     } else {
-      // Fallback implementation: manually build grid from slide positions
-      const slideGrid = figma.currentPage.findOne(n => n.type === 'SLIDE_GRID');
-      if (!slideGrid) {
-        throw new Error('No slide grid found in current page');
+      // Manual fallback implementation: build grid from slide positions
+      const slides = figma.currentPage.findAll(n => n.type === 'SLIDE');
+      if (slides.length === 0) {
+        return { grid: [], totalSlides: 0, rows: 0, method: 'manual' };
       }
       
-      // Get all slides
-      const slides = slideGrid.children.filter(n => n.type === 'SLIDE');
-      if (slides.length === 0) {
-        return { grid: [], totalSlides: 0, rows: 0 };
-      }
+      // Calculate slide spacing constants
+      const SLIDE_HEIGHT = 1080;
+      const SPACING = 240;
+      const ROW_HEIGHT = SLIDE_HEIGHT + SPACING;
       
       // Sort slides by position to determine grid structure
       const sortedSlides = [...slides].sort((a, b) => {
-        if (Math.abs(a.y - b.y) < 10) {
+        if (Math.abs(a.y - b.y) < 50) {
           return a.x - b.x; // Same row, sort by x
         }
         return a.y - b.y; // Different rows, sort by y
       });
       
       // Group slides into rows based on y position
-      const rows = [];
-      let currentRow = [];
-      let currentY = sortedSlides[0].y;
+      const slidesByRow = {};
       
-      for (const slide of sortedSlides) {
-        if (Math.abs(slide.y - currentY) > 100) {
-          // New row detected
-          rows.push(currentRow);
-          currentRow = [];
-          currentY = slide.y;
-        }
-        currentRow.push({
+      slides.forEach(slide => {
+        // Calculate row based on Y position
+        const row = Math.floor((slide.y - 240) / ROW_HEIGHT);
+        if (!slidesByRow[row]) slidesByRow[row] = [];
+        slidesByRow[row].push({
           id: slide.id,
           name: slide.name,
-          type: slide.type
+          type: slide.type,
+          x: slide.x,
+          y: slide.y
         });
-      }
+      });
       
-      if (currentRow.length > 0) {
-        rows.push(currentRow);
-      }
+      // Sort slides in each row by X position
+      Object.values(slidesByRow).forEach(row => {
+        row.sort((a, b) => a.x - b.x);
+      });
+      
+      const gridArray = Object.keys(slidesByRow)
+        .sort((a, b) => Number(a) - Number(b))
+        .map(key => slidesByRow[key]);
       
       return {
-        grid: rows,
+        grid: gridArray,
         totalSlides: slides.length,
-        rows: rows.length
+        rows: gridArray.length,
+        method: 'manual'
       };
     }
   } catch (error) {
