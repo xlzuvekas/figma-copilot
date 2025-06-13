@@ -1570,7 +1570,7 @@ function setSlideGrid(_x10) {
 }
 function _setSlideGrid() {
   _setSlideGrid = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(params) {
-    var _ref19, slides, slideArrangements, _iterator2, _step2, row, slideNodes, _iterator3, _step3, slideId, node, slideGrid, SLIDE_WIDTH, SLIDE_HEIGHT, HORIZONTAL_SPACING, VERTICAL_SPACING, INITIAL_X, INITIAL_Y, currentY, successCount, rowIndex, _row, currentX, colIndex, _slideId, _node, _t10, _t11, _t12;
+    var _ref19, slides, slideArrangements, _iterator2, _step2, _row, slideNodes, _iterator3, _step3, _slideId, node, SLIDE_WIDTH, SLIDE_HEIGHT, SPACING, START_X, START_Y, updatedCount, rowIndex, row, colIndex, slideId, slide, _t10, _t11, _t12;
     return _regenerator().w(function (_context21) {
       while (1) switch (_context21.n) {
         case 0:
@@ -1588,11 +1588,7 @@ function _setSlideGrid() {
           throw new Error("slides parameter must be an array of slide arrangements");
         case 2:
           _context21.p = 2;
-          if (!(typeof figma.currentPage.setSlideGrid === 'function')) {
-            _context21.n = 19;
-            break;
-          }
-          // Validate and convert slide IDs to nodes
+          // Validate and convert slide IDs to nodes first
           slideArrangements = [];
           _iterator2 = _createForOfIteratorHelper(slides);
           _context21.p = 3;
@@ -1602,9 +1598,9 @@ function _setSlideGrid() {
             _context21.n = 15;
             break;
           }
-          row = _step2.value;
+          _row = _step2.value;
           slideNodes = [];
-          _iterator3 = _createForOfIteratorHelper(row);
+          _iterator3 = _createForOfIteratorHelper(_row);
           _context21.p = 5;
           _iterator3.s();
         case 6:
@@ -1612,16 +1608,16 @@ function _setSlideGrid() {
             _context21.n = 10;
             break;
           }
-          slideId = _step3.value;
+          _slideId = _step3.value;
           _context21.n = 7;
-          return figma.getNodeByIdAsync(slideId);
+          return figma.getNodeByIdAsync(_slideId);
         case 7:
           node = _context21.v;
           if (!(!node || node.type !== "SLIDE")) {
             _context21.n = 8;
             break;
           }
-          throw new Error("Invalid slide ID: ".concat(slideId));
+          throw new Error("Invalid slide ID: ".concat(_slideId));
         case 8:
           slideNodes.push(node);
         case 9:
@@ -1655,92 +1651,86 @@ function _setSlideGrid() {
           _iterator2.f();
           return _context21.f(17);
         case 18:
+          if (!(typeof figma.setSlideGrid === 'function')) {
+            _context21.n = 19;
+            break;
+          }
+          // Apply the new slide grid arrangement
+          figma.setSlideGrid(slideArrangements);
+          return _context21.a(2, {
+            success: true,
+            message: "Slide grid updated with ".concat(slides.length, " rows"),
+            method: 'figma.setSlideGrid'
+          });
+        case 19:
+          if (!(typeof figma.currentPage.setSlideGrid === 'function')) {
+            _context21.n = 20;
+            break;
+          }
           // Apply the new slide grid arrangement
           figma.currentPage.setSlideGrid(slideArrangements);
           return _context21.a(2, {
             success: true,
-            message: "Slide grid updated with ".concat(slides.length, " rows")
+            message: "Slide grid updated with ".concat(slides.length, " rows"),
+            method: 'figma.currentPage.setSlideGrid'
           });
-        case 19:
-          // Fallback implementation: manually arrange slides
-          slideGrid = figma.currentPage.findOne(function (n) {
-            return n.type === 'SLIDE_GRID';
-          });
-          if (slideGrid) {
-            _context21.n = 20;
-            break;
-          }
-          throw new Error('No slide grid found in current page');
         case 20:
+          // Manual fallback implementation: manually arrange slides by position
           // Constants for slide spacing (based on standard slide dimensions)
           SLIDE_WIDTH = 1920;
           SLIDE_HEIGHT = 1080;
-          HORIZONTAL_SPACING = 240;
-          VERTICAL_SPACING = 240;
-          INITIAL_X = 240;
-          INITIAL_Y = 240;
-          currentY = INITIAL_Y;
-          successCount = 0;
+          SPACING = 240;
+          START_X = 240;
+          START_Y = 240;
+          updatedCount = 0;
           rowIndex = 0;
         case 21:
           if (!(rowIndex < slides.length)) {
-            _context21.n = 28;
-            break;
-          }
-          _row = slides[rowIndex];
-          currentX = INITIAL_X;
-          colIndex = 0;
-        case 22:
-          if (!(colIndex < _row.length)) {
             _context21.n = 26;
             break;
           }
-          _slideId = _row[colIndex];
-          _context21.n = 23;
-          return figma.getNodeByIdAsync(_slideId);
-        case 23:
-          _node = _context21.v;
-          if (!(!_node || _node.type !== "SLIDE")) {
-            _context21.n = 24;
+          row = slides[rowIndex];
+          colIndex = 0;
+        case 22:
+          if (!(colIndex < row.length)) {
+            _context21.n = 25;
             break;
           }
-          console.warn("Skipping invalid slide ID: ".concat(_slideId));
-          return _context21.a(3, 25);
+          slideId = row[colIndex];
+          _context21.n = 23;
+          return figma.getNodeByIdAsync(slideId);
+        case 23:
+          slide = _context21.v;
+          if (slide && slide.type === 'SLIDE') {
+            slide.x = START_X + colIndex * (SLIDE_WIDTH + SPACING);
+            slide.y = START_Y + rowIndex * (SLIDE_HEIGHT + SPACING);
+            updatedCount++;
+          }
         case 24:
-          // Position the slide
-          _node.x = currentX;
-          _node.y = currentY;
-          successCount++;
-
-          // Move to next column position
-          currentX += SLIDE_WIDTH + HORIZONTAL_SPACING;
-        case 25:
           colIndex++;
           _context21.n = 22;
           break;
-        case 26:
-          // Move to next row position
-          currentY += SLIDE_HEIGHT + VERTICAL_SPACING;
-        case 27:
+        case 25:
           rowIndex++;
           _context21.n = 21;
           break;
-        case 28:
+        case 26:
           return _context21.a(2, {
             success: true,
-            message: "Manually arranged ".concat(successCount, " slides in ").concat(slides.length, " rows")
+            message: "Manually positioned ".concat(updatedCount, " slides in ").concat(slides.length, " rows"),
+            method: 'manual'
           });
-        case 29:
-          _context21.n = 31;
+        case 27:
+          _context21.n = 29;
           break;
-        case 30:
-          _context21.p = 30;
+        case 28:
+          _context21.p = 28;
           _t12 = _context21.v;
           throw new Error("Failed to set slide grid: ".concat(_t12.message));
-        case 31:
+        case 29:
           return _context21.a(2);
       }
-    }, _callee21, null, [[5, 11, 12, 13], [3, 16, 17, 18], [2, 30]]);
+    }, _callee21, null, [[5, 11, 12, 13], [3, 16, 17, 18], [2, 28]]);
   }));
   return _setSlideGrid.apply(this, arguments);
 }
@@ -2044,7 +2034,7 @@ function getSlideGrid() {
 }
 function _getSlideGrid() {
   _getSlideGrid = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
-    var grid, gridInfo, slideGrid, slides, sortedSlides, rows, currentRow, currentY, _iterator4, _step4, slide, _t15;
+    var grid, gridInfo, _grid, _gridInfo, slides, SLIDE_HEIGHT, SPACING, ROW_HEIGHT, sortedSlides, slidesByRow, gridArray, _t15;
     return _regenerator().w(function (_context27) {
       while (1) switch (_context27.n) {
         case 0:
@@ -2055,38 +2045,54 @@ function _getSlideGrid() {
           throw new Error("getSlideGrid can only be used in Figma Slides documents");
         case 1:
           _context27.p = 1;
-          if (!(typeof figma.currentPage.getSlideGrid === 'function')) {
+          if (!(typeof figma.getSlideGrid === 'function')) {
             _context27.n = 2;
             break;
           }
-          grid = figma.currentPage.getSlideGrid(); // Convert slide nodes to basic info
+          grid = figma.getSlideGrid(); // Convert slide nodes to basic info
           gridInfo = grid.map(function (row) {
             return row.map(function (slide) {
               return {
                 id: slide.id,
                 name: slide.name,
-                type: slide.type
+                type: slide.type,
+                x: slide.x,
+                y: slide.y
               };
             });
           });
           return _context27.a(2, {
             grid: gridInfo,
             totalSlides: grid.flat().length,
-            rows: grid.length
+            rows: grid.length,
+            method: 'figma.getSlideGrid'
           });
         case 2:
-          // Fallback implementation: manually build grid from slide positions
-          slideGrid = figma.currentPage.findOne(function (n) {
-            return n.type === 'SLIDE_GRID';
-          });
-          if (slideGrid) {
+          if (!(typeof figma.currentPage.getSlideGrid === 'function')) {
             _context27.n = 3;
             break;
           }
-          throw new Error('No slide grid found in current page');
+          _grid = figma.currentPage.getSlideGrid(); // Convert slide nodes to basic info
+          _gridInfo = _grid.map(function (row) {
+            return row.map(function (slide) {
+              return {
+                id: slide.id,
+                name: slide.name,
+                type: slide.type,
+                x: slide.x,
+                y: slide.y
+              };
+            });
+          });
+          return _context27.a(2, {
+            grid: _gridInfo,
+            totalSlides: _grid.flat().length,
+            rows: _grid.length,
+            method: 'figma.currentPage.getSlideGrid'
+          });
         case 3:
-          // Get all slides
-          slides = slideGrid.children.filter(function (n) {
+          // Manual fallback implementation: build grid from slide positions
+          slides = figma.currentPage.findAll(function (n) {
             return n.type === 'SLIDE';
           });
           if (!(slides.length === 0)) {
@@ -2096,47 +2102,50 @@ function _getSlideGrid() {
           return _context27.a(2, {
             grid: [],
             totalSlides: 0,
-            rows: 0
+            rows: 0,
+            method: 'manual'
           });
         case 4:
-          // Sort slides by position to determine grid structure
+          // Calculate slide spacing constants
+          SLIDE_HEIGHT = 1080;
+          SPACING = 240;
+          ROW_HEIGHT = SLIDE_HEIGHT + SPACING; // Sort slides by position to determine grid structure
           sortedSlides = _toConsumableArray(slides).sort(function (a, b) {
-            if (Math.abs(a.y - b.y) < 10) {
+            if (Math.abs(a.y - b.y) < 50) {
               return a.x - b.x; // Same row, sort by x
             }
             return a.y - b.y; // Different rows, sort by y
           }); // Group slides into rows based on y position
-          rows = [];
-          currentRow = [];
-          currentY = sortedSlides[0].y;
-          _iterator4 = _createForOfIteratorHelper(sortedSlides);
-          try {
-            for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
-              slide = _step4.value;
-              if (Math.abs(slide.y - currentY) > 100) {
-                // New row detected
-                rows.push(currentRow);
-                currentRow = [];
-                currentY = slide.y;
-              }
-              currentRow.push({
-                id: slide.id,
-                name: slide.name,
-                type: slide.type
-              });
-            }
-          } catch (err) {
-            _iterator4.e(err);
-          } finally {
-            _iterator4.f();
-          }
-          if (currentRow.length > 0) {
-            rows.push(currentRow);
-          }
+          slidesByRow = {};
+          slides.forEach(function (slide) {
+            // Calculate row based on Y position
+            var row = Math.floor((slide.y - 240) / ROW_HEIGHT);
+            if (!slidesByRow[row]) slidesByRow[row] = [];
+            slidesByRow[row].push({
+              id: slide.id,
+              name: slide.name,
+              type: slide.type,
+              x: slide.x,
+              y: slide.y
+            });
+          });
+
+          // Sort slides in each row by X position
+          Object.values(slidesByRow).forEach(function (row) {
+            row.sort(function (a, b) {
+              return a.x - b.x;
+            });
+          });
+          gridArray = Object.keys(slidesByRow).sort(function (a, b) {
+            return Number(a) - Number(b);
+          }).map(function (key) {
+            return slidesByRow[key];
+          });
           return _context27.a(2, {
-            grid: rows,
+            grid: gridArray,
             totalSlides: slides.length,
-            rows: rows.length
+            rows: gridArray.length,
+            method: 'manual'
           });
         case 5:
           _context27.n = 7;
@@ -4129,7 +4138,7 @@ function scanTextNodes(_x38) {
 } // Helper function to collect all nodes that need to be processed
 function _scanTextNodes() {
   _scanTextNodes = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee44(params) {
-    var _ref37, nodeId, _ref37$useChunking, useChunking, _ref37$chunkSize, chunkSize, _ref37$commandId, commandId, node, textNodes, nodesToProcess, totalNodes, totalChunks, allTextNodes, processedNodes, chunksProcessed, i, chunkEnd, chunkNodes, chunkTextNodes, _iterator5, _step5, nodeInfo, textNodeInfo, _t29, _t30, _t31;
+    var _ref37, nodeId, _ref37$useChunking, useChunking, _ref37$chunkSize, chunkSize, _ref37$commandId, commandId, node, textNodes, nodesToProcess, totalNodes, totalChunks, allTextNodes, processedNodes, chunksProcessed, i, chunkEnd, chunkNodes, chunkTextNodes, _iterator4, _step4, nodeInfo, textNodeInfo, _t29, _t30, _t31;
     return _regenerator().w(function (_context44) {
       while (1) switch (_context44.n) {
         case 0:
@@ -4237,15 +4246,15 @@ function _scanTextNodes() {
           });
           chunkNodes = nodesToProcess.slice(i, chunkEnd);
           chunkTextNodes = []; // Process each node in this chunk
-          _iterator5 = _createForOfIteratorHelper(chunkNodes);
+          _iterator4 = _createForOfIteratorHelper(chunkNodes);
           _context44.p = 9;
-          _iterator5.s();
+          _iterator4.s();
         case 10:
-          if ((_step5 = _iterator5.n()).done) {
+          if ((_step4 = _iterator4.n()).done) {
             _context44.n = 16;
             break;
           }
-          nodeInfo = _step5.value;
+          nodeInfo = _step4.value;
           if (!(nodeInfo.node.type === "TEXT")) {
             _context44.n = 14;
             break;
@@ -4277,10 +4286,10 @@ function _scanTextNodes() {
         case 17:
           _context44.p = 17;
           _t31 = _context44.v;
-          _iterator5.e(_t31);
+          _iterator4.e(_t31);
         case 18:
           _context44.p = 18;
-          _iterator5.f();
+          _iterator4.f();
           return _context44.f(18);
         case 19:
           // Add results from this chunk
@@ -4340,8 +4349,8 @@ function _collectNodesToProcess() {
       depth,
       nodesToProcess,
       nodePath,
-      _iterator6,
-      _step6,
+      _iterator5,
+      _step5,
       child,
       _args45 = arguments,
       _t32;
@@ -4370,15 +4379,15 @@ function _collectNodesToProcess() {
             _context45.n = 8;
             break;
           }
-          _iterator6 = _createForOfIteratorHelper(node.children);
+          _iterator5 = _createForOfIteratorHelper(node.children);
           _context45.p = 2;
-          _iterator6.s();
+          _iterator5.s();
         case 3:
-          if ((_step6 = _iterator6.n()).done) {
+          if ((_step5 = _iterator5.n()).done) {
             _context45.n = 5;
             break;
           }
-          child = _step6.value;
+          child = _step5.value;
           _context45.n = 4;
           return collectNodesToProcess(child, nodePath, depth + 1, nodesToProcess);
         case 4:
@@ -4390,10 +4399,10 @@ function _collectNodesToProcess() {
         case 6:
           _context45.p = 6;
           _t32 = _context45.v;
-          _iterator6.e(_t32);
+          _iterator5.e(_t32);
         case 7:
           _context45.p = 7;
-          _iterator6.f();
+          _iterator5.f();
           return _context45.f(7);
         case 8:
           return _context45.a(2);
@@ -4504,8 +4513,8 @@ function _findTextNodes() {
       fontStyle,
       safeTextNode,
       originalFills,
-      _iterator7,
-      _step7,
+      _iterator6,
+      _step6,
       child,
       _args47 = arguments,
       _t35,
@@ -4599,15 +4608,15 @@ function _findTextNodes() {
             _context47.n = 15;
             break;
           }
-          _iterator7 = _createForOfIteratorHelper(node.children);
+          _iterator6 = _createForOfIteratorHelper(node.children);
           _context47.p = 9;
-          _iterator7.s();
+          _iterator6.s();
         case 10:
-          if ((_step7 = _iterator7.n()).done) {
+          if ((_step6 = _iterator6.n()).done) {
             _context47.n = 12;
             break;
           }
-          child = _step7.value;
+          child = _step6.value;
           _context47.n = 11;
           return findTextNodes(child, nodePath, depth + 1, textNodes);
         case 11:
@@ -4619,10 +4628,10 @@ function _findTextNodes() {
         case 13:
           _context47.p = 13;
           _t37 = _context47.v;
-          _iterator7.e(_t37);
+          _iterator6.e(_t37);
         case 14:
           _context47.p = 14;
-          _iterator7.f();
+          _iterator6.f();
           return _context47.f(14);
         case 15:
           return _context47.a(2);
@@ -4901,7 +4910,7 @@ function updateTextPreserveFormatting(_x45) {
 }
 function _updateTextPreserveFormatting() {
   _updateTextPreserveFormatting = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee50(params) {
-    var _ref40, nodeId, newText, _ref40$preserveFormat, preserveFormattingStrategy, node, oldText, formatting, styleProps, currentStart, currentStyle, rangeEnd, _iterator8, _step8, _prop, _value, i, matches, _i, _Object$keys, prop, value, fontsToLoad, _i2, _formatting, format, _iterator9, _step9, font, _i3, _formatting2, _format, start, end, oldLength, newLength, _i4, _Object$entries, _Object$entries$_i, _prop2, _value2, _t40, _t41, _t42, _t43;
+    var _ref40, nodeId, newText, _ref40$preserveFormat, preserveFormattingStrategy, node, oldText, formatting, styleProps, currentStart, currentStyle, rangeEnd, _iterator7, _step7, _prop, _value, i, matches, _i, _Object$keys, prop, value, fontsToLoad, _i2, _formatting, format, _iterator8, _step8, font, _i3, _formatting2, _format, start, end, oldLength, newLength, _i4, _Object$entries, _Object$entries$_i, _prop2, _value2, _t40, _t41, _t42, _t43;
     return _regenerator().w(function (_context50) {
       while (1) switch (_context50.n) {
         case 0:
@@ -4940,10 +4949,10 @@ function _updateTextPreserveFormatting() {
           }
           currentStyle = {};
           rangeEnd = currentStart + 1; // Get style for current position
-          _iterator8 = _createForOfIteratorHelper(styleProps);
+          _iterator7 = _createForOfIteratorHelper(styleProps);
           try {
-            for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
-              _prop = _step8.value;
+            for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+              _prop = _step7.value;
               try {
                 _value = node.getRangeProperty(currentStart, currentStart + 1, _prop);
                 if (_value !== figma.mixed) {
@@ -4956,9 +4965,9 @@ function _updateTextPreserveFormatting() {
 
             // Find how far this style extends
           } catch (err) {
-            _iterator8.e(err);
+            _iterator7.e(err);
           } finally {
-            _iterator8.f();
+            _iterator7.f();
           }
           i = currentStart + 1;
         case 6:
@@ -5033,15 +5042,15 @@ function _updateTextPreserveFormatting() {
           }
 
           // Load fonts
-          _iterator9 = _createForOfIteratorHelper(fontsToLoad);
+          _iterator8 = _createForOfIteratorHelper(fontsToLoad);
           _context50.p = 17;
-          _iterator9.s();
+          _iterator8.s();
         case 18:
-          if ((_step9 = _iterator9.n()).done) {
+          if ((_step8 = _iterator8.n()).done) {
             _context50.n = 23;
             break;
           }
-          font = _step9.value;
+          font = _step8.value;
           _context50.p = 19;
           _context50.n = 20;
           return figma.loadFontAsync(font);
@@ -5061,10 +5070,10 @@ function _updateTextPreserveFormatting() {
         case 24:
           _context50.p = 24;
           _t42 = _context50.v;
-          _iterator9.e(_t42);
+          _iterator8.e(_t42);
         case 25:
           _context50.p = 25;
-          _iterator9.f();
+          _iterator8.f();
           return _context50.f(25);
         case 26:
           // Update the text
@@ -5174,7 +5183,7 @@ function smartTextReplace(_x46) {
 }
 function _smartTextReplace() {
   _smartTextReplace = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee51(params) {
-    var _ref41, nodeId, replacements, _ref41$matchCase, matchCase, node, originalText, formatting, i, charFormat, styleProps, _i5, _styleProps, prop, value, newText, newFormatting, _iterator0, _step0, replacement, find, replace, searchText, searchFor, offset, index, replaceFormatting, baseFormat, _i7, fontsToLoad, _iterator1, _step1, format, _iterator10, _step10, font, currentStart, currentFormat, rangeEnd, _i6, _Object$entries2, _Object$entries2$_i, _prop3, _value3, _t44, _t45, _t46;
+    var _ref41, nodeId, replacements, _ref41$matchCase, matchCase, node, originalText, formatting, i, charFormat, styleProps, _i5, _styleProps, prop, value, newText, newFormatting, _iterator9, _step9, replacement, find, replace, searchText, searchFor, offset, index, replaceFormatting, baseFormat, _i7, fontsToLoad, _iterator0, _step0, format, _iterator1, _step1, font, currentStart, currentFormat, rangeEnd, _i6, _Object$entries2, _Object$entries2$_i, _prop3, _value3, _t44, _t45, _t46;
     return _regenerator().w(function (_context51) {
       while (1) switch (_context51.n) {
         case 0:
@@ -5224,15 +5233,15 @@ function _smartTextReplace() {
           // Build new text and formatting mapping
           newText = originalText;
           newFormatting = [].concat(formatting); // Process replacements
-          _iterator0 = _createForOfIteratorHelper(replacements);
+          _iterator9 = _createForOfIteratorHelper(replacements);
           _context51.p = 5;
-          _iterator0.s();
+          _iterator9.s();
         case 6:
-          if ((_step0 = _iterator0.n()).done) {
+          if ((_step9 = _iterator9.n()).done) {
             _context51.n = 9;
             break;
           }
-          replacement = _step0.value;
+          replacement = _step9.value;
           find = replacement.find, replace = replacement.replace;
           if (!(!find || replace === undefined)) {
             _context51.n = 7;
@@ -5271,36 +5280,36 @@ function _smartTextReplace() {
         case 10:
           _context51.p = 10;
           _t44 = _context51.v;
-          _iterator0.e(_t44);
+          _iterator9.e(_t44);
         case 11:
           _context51.p = 11;
-          _iterator0.f();
+          _iterator9.f();
           return _context51.f(11);
         case 12:
           // Load required fonts
           fontsToLoad = new Set();
-          _iterator1 = _createForOfIteratorHelper(newFormatting);
+          _iterator0 = _createForOfIteratorHelper(newFormatting);
           try {
-            for (_iterator1.s(); !(_step1 = _iterator1.n()).done;) {
-              format = _step1.value;
+            for (_iterator0.s(); !(_step0 = _iterator0.n()).done;) {
+              format = _step0.value;
               if (format.fontName) {
                 fontsToLoad.add(format.fontName);
               }
             }
           } catch (err) {
-            _iterator1.e(err);
+            _iterator0.e(err);
           } finally {
-            _iterator1.f();
+            _iterator0.f();
           }
-          _iterator10 = _createForOfIteratorHelper(fontsToLoad);
+          _iterator1 = _createForOfIteratorHelper(fontsToLoad);
           _context51.p = 13;
-          _iterator10.s();
+          _iterator1.s();
         case 14:
-          if ((_step10 = _iterator10.n()).done) {
+          if ((_step1 = _iterator1.n()).done) {
             _context51.n = 19;
             break;
           }
-          font = _step10.value;
+          font = _step1.value;
           _context51.p = 15;
           _context51.n = 16;
           return figma.loadFontAsync(font);
@@ -5320,10 +5329,10 @@ function _smartTextReplace() {
         case 20:
           _context51.p = 20;
           _t46 = _context51.v;
-          _iterator10.e(_t46);
+          _iterator1.e(_t46);
         case 21:
           _context51.p = 21;
-          _iterator10.f();
+          _iterator1.f();
           return _context51.f(21);
         case 22:
           // Apply new text
@@ -5366,7 +5375,7 @@ function setMultipleTextContentsWithStyles(_x47) {
 } // Batch operation functions
 function _setMultipleTextContentsWithStyles() {
   _setMultipleTextContentsWithStyles = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee52(params) {
-    var _ref42, nodeId, updates, parentNode, results, _iterator11, _step11, update, textNodeId, text, styles, textNode, fontsToLoad, _iterator12, _step12, style, _iterator13, _step13, font, _iterator14, _step14, _style, start, end, bold, italic, fontSize, fontFamily, fills, currentFont, newStyle, fontStyle, _t47, _t48, _t49, _t50, _t51, _t52, _t53;
+    var _ref42, nodeId, updates, parentNode, results, _iterator10, _step10, update, textNodeId, text, styles, textNode, fontsToLoad, _iterator11, _step11, style, _iterator12, _step12, font, _iterator13, _step13, _style, start, end, bold, italic, fontSize, fontFamily, fills, currentFont, newStyle, fontStyle, _t47, _t48, _t49, _t50, _t51, _t52, _t53;
     return _regenerator().w(function (_context52) {
       while (1) switch (_context52.n) {
         case 0:
@@ -5394,15 +5403,15 @@ function _setMultipleTextContentsWithStyles() {
           throw new Error("Parent node not found: ".concat(nodeId));
         case 4:
           results = [];
-          _iterator11 = _createForOfIteratorHelper(updates);
+          _iterator10 = _createForOfIteratorHelper(updates);
           _context52.p = 5;
-          _iterator11.s();
+          _iterator10.s();
         case 6:
-          if ((_step11 = _iterator11.n()).done) {
+          if ((_step10 = _iterator10.n()).done) {
             _context52.n = 37;
             break;
           }
-          update = _step11.value;
+          update = _step10.value;
           textNodeId = update.nodeId, text = update.text, styles = update.styles;
           _context52.p = 7;
           _context52.n = 8;
@@ -5423,10 +5432,10 @@ function _setMultipleTextContentsWithStyles() {
           // Load fonts if needed
           fontsToLoad = new Set();
           if (styles) {
-            _iterator12 = _createForOfIteratorHelper(styles);
+            _iterator11 = _createForOfIteratorHelper(styles);
             try {
-              for (_iterator12.s(); !(_step12 = _iterator12.n()).done;) {
-                style = _step12.value;
+              for (_iterator11.s(); !(_step11 = _iterator11.n()).done;) {
+                style = _step11.value;
                 if (style.fontFamily) {
                   fontsToLoad.add({
                     family: style.fontFamily,
@@ -5435,20 +5444,20 @@ function _setMultipleTextContentsWithStyles() {
                 }
               }
             } catch (err) {
-              _iterator12.e(err);
+              _iterator11.e(err);
             } finally {
-              _iterator12.f();
+              _iterator11.f();
             }
           }
-          _iterator13 = _createForOfIteratorHelper(fontsToLoad);
+          _iterator12 = _createForOfIteratorHelper(fontsToLoad);
           _context52.p = 10;
-          _iterator13.s();
+          _iterator12.s();
         case 11:
-          if ((_step13 = _iterator13.n()).done) {
+          if ((_step12 = _iterator12.n()).done) {
             _context52.n = 16;
             break;
           }
-          font = _step13.value;
+          font = _step12.value;
           _context52.p = 12;
           _context52.n = 13;
           return figma.loadFontAsync(font);
@@ -5468,10 +5477,10 @@ function _setMultipleTextContentsWithStyles() {
         case 17:
           _context52.p = 17;
           _t48 = _context52.v;
-          _iterator13.e(_t48);
+          _iterator12.e(_t48);
         case 18:
           _context52.p = 18;
-          _iterator13.f();
+          _iterator12.f();
           return _context52.f(18);
         case 19:
           // Update text
@@ -5482,15 +5491,15 @@ function _setMultipleTextContentsWithStyles() {
             _context52.n = 34;
             break;
           }
-          _iterator14 = _createForOfIteratorHelper(styles);
+          _iterator13 = _createForOfIteratorHelper(styles);
           _context52.p = 20;
-          _iterator14.s();
+          _iterator13.s();
         case 21:
-          if ((_step14 = _iterator14.n()).done) {
+          if ((_step13 = _iterator13.n()).done) {
             _context52.n = 31;
             break;
           }
-          _style = _step14.value;
+          _style = _step13.value;
           start = _style.start, end = _style.end, bold = _style.bold, italic = _style.italic, fontSize = _style.fontSize, fontFamily = _style.fontFamily, fills = _style.fills;
           if (!(start !== undefined && end !== undefined)) {
             _context52.n = 30;
@@ -5566,10 +5575,10 @@ function _setMultipleTextContentsWithStyles() {
         case 32:
           _context52.p = 32;
           _t51 = _context52.v;
-          _iterator14.e(_t51);
+          _iterator13.e(_t51);
         case 33:
           _context52.p = 33;
-          _iterator14.f();
+          _iterator13.f();
           return _context52.f(33);
         case 34:
           results.push({
@@ -5595,10 +5604,10 @@ function _setMultipleTextContentsWithStyles() {
         case 38:
           _context52.p = 38;
           _t53 = _context52.v;
-          _iterator11.e(_t53);
+          _iterator10.e(_t53);
         case 39:
           _context52.p = 39;
-          _iterator11.f();
+          _iterator10.f();
           return _context52.f(39);
         case 40:
           return _context52.a(2, {
@@ -5842,7 +5851,7 @@ function setMultipleNodesProperty(_x50) {
 }
 function _setMultipleNodesProperty() {
   _setMultipleNodesProperty = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee57(params) {
-    var _ref47, nodeIds, property, value, results, _iterator15, _step15, nodeId, node, _t58, _t59;
+    var _ref47, nodeIds, property, value, results, _iterator14, _step14, nodeId, node, _t58, _t59;
     return _regenerator().w(function (_context57) {
       while (1) switch (_context57.n) {
         case 0:
@@ -5866,15 +5875,15 @@ function _setMultipleNodesProperty() {
           throw new Error("Missing value parameter");
         case 3:
           results = [];
-          _iterator15 = _createForOfIteratorHelper(nodeIds);
+          _iterator14 = _createForOfIteratorHelper(nodeIds);
           _context57.p = 4;
-          _iterator15.s();
+          _iterator14.s();
         case 5:
-          if ((_step15 = _iterator15.n()).done) {
+          if ((_step14 = _iterator14.n()).done) {
             _context57.n = 11;
             break;
           }
-          nodeId = _step15.value;
+          nodeId = _step14.value;
           _context57.p = 6;
           _context57.n = 7;
           return figma.getNodeByIdAsync(nodeId);
@@ -5935,10 +5944,10 @@ function _setMultipleNodesProperty() {
         case 12:
           _context57.p = 12;
           _t59 = _context57.v;
-          _iterator15.e(_t59);
+          _iterator14.e(_t59);
         case 13:
           _context57.p = 13;
-          _iterator15.f();
+          _iterator14.f();
           return _context57.f(13);
         case 14:
           return _context57.a(2, {
@@ -5968,8 +5977,8 @@ function _scanNodesWithOptions() {
           _scanNode = function _scanNode3() {
             _scanNode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee58(node) {
               var depth,
-                _iterator16,
-                _step16,
+                _iterator15,
+                _step15,
                 child,
                 _args58 = arguments,
                 _t60;
@@ -6026,15 +6035,15 @@ function _scanNodesWithOptions() {
                       _context58.n = 12;
                       break;
                     }
-                    _iterator16 = _createForOfIteratorHelper(node.children);
+                    _iterator15 = _createForOfIteratorHelper(node.children);
                     _context58.p = 6;
-                    _iterator16.s();
+                    _iterator15.s();
                   case 7:
-                    if ((_step16 = _iterator16.n()).done) {
+                    if ((_step15 = _iterator15.n()).done) {
                       _context58.n = 9;
                       break;
                     }
-                    child = _step16.value;
+                    child = _step15.value;
                     _context58.n = 8;
                     return scanNode(child, depth + 1);
                   case 8:
@@ -6046,10 +6055,10 @@ function _scanNodesWithOptions() {
                   case 10:
                     _context58.p = 10;
                     _t60 = _context58.v;
-                    _iterator16.e(_t60);
+                    _iterator15.e(_t60);
                   case 11:
                     _context58.p = 11;
-                    _iterator16.f();
+                    _iterator15.f();
                     return _context58.f(11);
                   case 12:
                     return _context58.a(2);
@@ -7134,7 +7143,7 @@ function _getAnnotations() {
           annotations = [];
           _processNode = /*#__PURE__*/function () {
             var _ref61 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee74(node) {
-              var _iterator17, _step17, child, _t75;
+              var _iterator16, _step16, child, _t75;
               return _regenerator().w(function (_context74) {
                 while (1) switch (_context74.n) {
                   case 0:
@@ -7149,15 +7158,15 @@ function _getAnnotations() {
                       _context74.n = 7;
                       break;
                     }
-                    _iterator17 = _createForOfIteratorHelper(node.children);
+                    _iterator16 = _createForOfIteratorHelper(node.children);
                     _context74.p = 1;
-                    _iterator17.s();
+                    _iterator16.s();
                   case 2:
-                    if ((_step17 = _iterator17.n()).done) {
+                    if ((_step16 = _iterator16.n()).done) {
                       _context74.n = 4;
                       break;
                     }
-                    child = _step17.value;
+                    child = _step16.value;
                     _context74.n = 3;
                     return _processNode(child);
                   case 3:
@@ -7169,10 +7178,10 @@ function _getAnnotations() {
                   case 5:
                     _context74.p = 5;
                     _t75 = _context74.v;
-                    _iterator17.e(_t75);
+                    _iterator16.e(_t75);
                   case 6:
                     _context74.p = 6;
-                    _iterator17.f();
+                    _iterator16.f();
                     return _context74.f(6);
                   case 7:
                     return _context74.a(2);
@@ -7397,8 +7406,8 @@ function findNodesByTypes(_x69, _x70) {
 function _findNodesByTypes() {
   _findNodesByTypes = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee78(node, types) {
     var matchingNodes,
-      _iterator18,
-      _step18,
+      _iterator17,
+      _step17,
       child,
       _args78 = arguments,
       _t78;
@@ -7434,15 +7443,15 @@ function _findNodesByTypes() {
             _context78.n = 8;
             break;
           }
-          _iterator18 = _createForOfIteratorHelper(node.children);
+          _iterator17 = _createForOfIteratorHelper(node.children);
           _context78.p = 2;
-          _iterator18.s();
+          _iterator17.s();
         case 3:
-          if ((_step18 = _iterator18.n()).done) {
+          if ((_step17 = _iterator17.n()).done) {
             _context78.n = 5;
             break;
           }
-          child = _step18.value;
+          child = _step17.value;
           _context78.n = 4;
           return findNodesByTypes(child, types, matchingNodes);
         case 4:
@@ -7454,10 +7463,10 @@ function _findNodesByTypes() {
         case 6:
           _context78.p = 6;
           _t78 = _context78.v;
-          _iterator18.e(_t78);
+          _iterator17.e(_t78);
         case 7:
           _context78.p = 7;
-          _iterator18.f();
+          _iterator17.f();
           return _context78.f(7);
         case 8:
           return _context78.a(2);
@@ -7885,7 +7894,7 @@ function getValidTargetInstances(_x73) {
  */
 function _getValidTargetInstances() {
   _getValidTargetInstances = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee83(targetNodeIds) {
-    var targetInstances, _iterator19, _step19, targetNodeId, targetNode, _t82;
+    var targetInstances, _iterator18, _step18, targetNodeId, targetNode, _t82;
     return _regenerator().w(function (_context83) {
       while (1) switch (_context83.n) {
         case 0:
@@ -7903,15 +7912,15 @@ function _getValidTargetInstances() {
             message: "No instances provided"
           });
         case 1:
-          _iterator19 = _createForOfIteratorHelper(targetNodeIds);
+          _iterator18 = _createForOfIteratorHelper(targetNodeIds);
           _context83.p = 2;
-          _iterator19.s();
+          _iterator18.s();
         case 3:
-          if ((_step19 = _iterator19.n()).done) {
+          if ((_step18 = _iterator18.n()).done) {
             _context83.n = 6;
             break;
           }
-          targetNodeId = _step19.value;
+          targetNodeId = _step18.value;
           _context83.n = 4;
           return figma.getNodeByIdAsync(targetNodeId);
         case 4:
@@ -7928,10 +7937,10 @@ function _getValidTargetInstances() {
         case 7:
           _context83.p = 7;
           _t82 = _context83.v;
-          _iterator19.e(_t82);
+          _iterator18.e(_t82);
         case 8:
           _context83.p = 8;
-          _iterator19.f();
+          _iterator18.f();
           return _context83.f(8);
         case 9:
           if (!(targetInstances.length === 0)) {
@@ -8036,7 +8045,7 @@ function setInstanceOverrides(_x75, _x76) {
 }
 function _setInstanceOverrides() {
   _setInstanceOverrides = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee85(targetInstances, sourceResult) {
-    var sourceInstance, mainComponent, overrides, _results, totalAppliedCount, _iterator20, _step20, targetInstance, appliedCount, _iterator21, _step21, override, overrideNodeId, overrideNode, sourceNode, fieldApplied, _iterator22, _step22, field, properties, key, instanceCount, message, _message, _message2, _t83, _t84, _t85, _t86, _t87, _t88;
+    var sourceInstance, mainComponent, overrides, _results, totalAppliedCount, _iterator19, _step19, targetInstance, appliedCount, _iterator20, _step20, override, overrideNodeId, overrideNode, sourceNode, fieldApplied, _iterator21, _step21, field, properties, key, instanceCount, message, _message, _message2, _t83, _t84, _t85, _t86, _t87, _t88;
     return _regenerator().w(function (_context85) {
       while (1) switch (_context85.n) {
         case 0:
@@ -8049,15 +8058,15 @@ function _setInstanceOverrides() {
           // Process all instances
           _results = [];
           totalAppliedCount = 0;
-          _iterator20 = _createForOfIteratorHelper(targetInstances);
+          _iterator19 = _createForOfIteratorHelper(targetInstances);
           _context85.p = 1;
-          _iterator20.s();
+          _iterator19.s();
         case 2:
-          if ((_step20 = _iterator20.n()).done) {
+          if ((_step19 = _iterator19.n()).done) {
             _context85.n = 31;
             break;
           }
-          targetInstance = _step20.value;
+          targetInstance = _step19.value;
           _context85.p = 3;
           // // Skip if trying to apply to the source instance itself
           // if (targetInstance.id === sourceInstance.id) {
@@ -8087,15 +8096,15 @@ function _setInstanceOverrides() {
 
           // Prepare overrides by replacing node IDs
           appliedCount = 0; // Apply each override
-          _iterator21 = _createForOfIteratorHelper(overrides);
+          _iterator20 = _createForOfIteratorHelper(overrides);
           _context85.p = 4;
-          _iterator21.s();
+          _iterator20.s();
         case 5:
-          if ((_step21 = _iterator21.n()).done) {
+          if ((_step20 = _iterator20.n()).done) {
             _context85.n = 25;
             break;
           }
-          override = _step21.value;
+          override = _step20.value;
           if (!(!override.id || !override.overriddenFields || override.overriddenFields.length === 0)) {
             _context85.n = 6;
             break;
@@ -8128,15 +8137,15 @@ function _setInstanceOverrides() {
         case 10:
           // Apply each overridden field
           fieldApplied = false;
-          _iterator22 = _createForOfIteratorHelper(override.overriddenFields);
+          _iterator21 = _createForOfIteratorHelper(override.overriddenFields);
           _context85.p = 11;
-          _iterator22.s();
+          _iterator21.s();
         case 12:
-          if ((_step22 = _iterator22.n()).done) {
+          if ((_step21 = _iterator21.n()).done) {
             _context85.n = 20;
             break;
           }
-          field = _step22.value;
+          field = _step21.value;
           _context85.p = 13;
           if (!(field === "componentProperties")) {
             _context85.n = 14;
@@ -8192,10 +8201,10 @@ function _setInstanceOverrides() {
         case 21:
           _context85.p = 21;
           _t84 = _context85.v;
-          _iterator22.e(_t84);
+          _iterator21.e(_t84);
         case 22:
           _context85.p = 22;
-          _iterator22.f();
+          _iterator21.f();
           return _context85.f(22);
         case 23:
           if (fieldApplied) {
@@ -8210,10 +8219,10 @@ function _setInstanceOverrides() {
         case 26:
           _context85.p = 26;
           _t85 = _context85.v;
-          _iterator21.e(_t85);
+          _iterator20.e(_t85);
         case 27:
           _context85.p = 27;
-          _iterator21.f();
+          _iterator20.f();
           return _context85.f(27);
         case 28:
           if (appliedCount > 0) {
@@ -8254,10 +8263,10 @@ function _setInstanceOverrides() {
         case 32:
           _context85.p = 32;
           _t87 = _context85.v;
-          _iterator20.e(_t87);
+          _iterator19.e(_t87);
         case 33:
           _context85.p = 33;
-          _iterator20.f();
+          _iterator19.f();
           return _context85.f(33);
         case 34:
           if (!(totalAppliedCount > 0)) {
