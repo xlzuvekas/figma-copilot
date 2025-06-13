@@ -13,14 +13,14 @@ This is an independent project and is not affiliated with, officially maintained
 ## Key Enhancements
 
 ### v0.3.2 (Latest)
-- **Text Formatting Preservation** - Text updates no longer lose formatting (bold, italic, colors, fonts)
-- **Batch Operations** - 50-90% performance improvement for bulk operations
+- **Text Formatting Preservation** - Text updates no longer lose formatting (bold, italic, colors, fonts). See [Enhanced Text Operations Guide](docs/ENHANCED_TEXT_OPERATIONS.md).
+- **Batch Operations** - 50-90% performance improvement for bulk operations. See [Batch Operations Guide](docs/BATCH_OPERATIONS.md).
 - **Enhanced Error Handling** - Specific, actionable error messages with suggestions
 - **Timeout Solutions** - New scanning options with depth control and partial results
 - **Smart Text Operations** - Find/replace with formatting preservation
 
 ### Previous Enhancements
-- **Fixed "Cannot unwrap symbol" error** when working with mixed fonts
+- **Fixed "Cannot unwrap symbol" error** when working with mixed fonts. See [Font Handling Documentation](docs/FONT_HANDLING.md).
 - **Improved font loading** with `getRangeAllFontNames()` API
 - **Better error handling** with `Promise.allSettled()` for font loading
 - **Safe value returns** to avoid serialization issues
@@ -187,11 +187,13 @@ The MCP server provides the following tools for interacting with Figma:
 - `set_multiple_text_contents` - Batch update multiple text nodes efficiently (Note: loses formatting)
 
 #### Text with Formatting Preservation (v0.3.2)
+See [Enhanced Text Operations Guide](docs/ENHANCED_TEXT_OPERATIONS.md) for an overview.
 - `update_text_preserve_formatting` - Update text while preserving all character formatting (bold, italic, colors, fonts)
 - `smart_text_replace` - Find and replace text while preserving formatting of unchanged portions
 - `set_multiple_text_contents_with_styles` - Batch update text with formatting in a single operation
 
 #### Text Styling
+See [Text Styling Guide](docs/TEXT_STYLING.md) for detailed usage.
 - `set_text_style_range` - Apply text styling (bold, italic, underline, strikethrough) to specific character ranges
 - `get_text_style_range` - Get text styling for a specific range
 - `set_text_decoration_range` - Set advanced text decoration properties
@@ -227,6 +229,7 @@ The MCP server provides the following tools for interacting with Figma:
 - `clone_node` - Create a copy of an existing node with optional position offset
 
 ### Batch Operations (v0.3.2)
+See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 
 - `clone_multiple_nodes` - Clone a node to multiple positions in one operation (50-90% faster than individual clones)
 - `get_multiple_nodes_info` - Get information for multiple nodes in a single request
