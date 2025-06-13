@@ -253,6 +253,28 @@ async function handleCommand(command, params) {
       return await setDefaultConnector(params);
     case "create_connections":
       return await createConnections(params);
+    case "set_text_style_range":
+      return await setTextStyleRange(params);
+    case "get_text_style_range":
+      return await getTextStyleRange(params);
+    case "set_text_decoration_range":
+      return await setTextDecorationRange(params);
+    case "get_text_decoration_range":
+      return await getTextDecorationRange(params);
+    case "set_range_font":
+      return await setRangeFont(params);
+    case "set_range_font_size":
+      return await setRangeFontSize(params);
+    case "set_range_fills":
+      return await setRangeFills(params);
+    case "get_styled_text_segments":
+      return await getStyledTextSegments(params);
+    case "set_component_description":
+      return await setComponentDescription(params);
+    case "get_component_description":
+      return await getComponentDescription(params);
+    case "normalize_markdown":
+      return await normalizeMarkdown(params);
     default:
       throw new Error(`Unknown command: ${command}`);
   }
@@ -838,6 +860,59 @@ async function createFrame(params) {
   };
 }
 
+// Helper functions for slide coordinate transformation
+function getSlidePosition(slide) {
+  // Slides are positioned in absolute coordinates
+  // Return the slide's absolute position
+  return {
+    x: slide.x,
+    y: slide.y
+  };
+}
+
+function toAbsoluteCoordinates(slide, localX, localY) {
+  // Convert local slide coordinates to absolute document coordinates
+  const slidePos = getSlidePosition(slide);
+  return {
+    x: slidePos.x + localX,
+    y: slidePos.y + localY
+  };
+}
+
+function toLocalCoordinates(slide, absoluteX, absoluteY) {
+  // Convert absolute document coordinates to local slide coordinates
+  const slidePos = getSlidePosition(slide);
+  return {
+    x: absoluteX - slidePos.x,
+    y: absoluteY - slidePos.y
+  };
+}
+
+async function getTargetSlide(parentId) {
+  // Helper to find the target slide for element creation
+  if (parentId) {
+    const parent = await figma.getNodeByIdAsync(parentId);
+    if (parent && parent.type === 'SLIDE') {
+      return parent;
+    }
+    // If parent is not a slide, traverse up to find the containing slide
+    let current = parent;
+    while (current && current.parent) {
+      if (current.type === 'SLIDE') {
+        return current;
+      }
+      current = current.parent;
+    }
+  }
+  
+  // If no parent specified, try to use the focused slide
+  if (figma.editorType === 'slides' && figma.currentPage.focusedSlide) {
+    return figma.currentPage.focusedSlide;
+  }
+  
+  return null;
+}
+
 async function createSlide(params) {
   const {
     name = "Slide",
@@ -850,6 +925,11 @@ async function createSlide(params) {
   // Check if we're in a Figma Slides document
   if (figma.editorType !== "slides") {
     throw new Error("createSlide can only be used in Figma Slides documents");
+  }
+
+  // Check if createSlide method exists
+  if (typeof figma.createSlide !== 'function') {
+    throw new Error("createSlide API is not available. Please ensure you're using the latest version of Figma with Slides support.");
   }
 
   const slide = figma.createSlide();
@@ -904,6 +984,10 @@ async function createSlide(params) {
     if (slideRows.length > 0) {
       slideRows[0].appendChild(slide);
     } else {
+      // Check if createSlideRow method exists
+      if (typeof figma.createSlideRow !== 'function') {
+        throw new Error("createSlideRow API is not available. Please ensure you're using the latest version of Figma with Slides support.");
+      }
       const slideRow = figma.createSlideRow();
       figma.currentPage.appendChild(slideRow);
       slideRow.appendChild(slide);
@@ -929,6 +1013,11 @@ async function createSlideRow(params) {
   // Check if we're in a Figma Slides document
   if (figma.editorType !== "slides") {
     throw new Error("createSlideRow can only be used in Figma Slides documents");
+  }
+
+  // Check if createSlideRow method exists
+  if (typeof figma.createSlideRow !== 'function') {
+    throw new Error("createSlideRow API is not available. Please ensure you're using the latest version of Figma with Slides support.");
   }
 
   const slideRow = figma.createSlideRow();
@@ -968,27 +1057,82 @@ async function setSlideGrid(params) {
     throw new Error("slides parameter must be an array of slide arrangements");
   }
 
-  // Validate and convert slide IDs to nodes
-  const slideArrangements = [];
-  for (const row of slides) {
-    const slideNodes = [];
-    for (const slideId of row) {
-      const node = await figma.getNodeByIdAsync(slideId);
-      if (!node || node.type !== "SLIDE") {
-        throw new Error(`Invalid slide ID: ${slideId}`);
+  try {
+    // Check if setSlideGrid method exists
+    if (typeof figma.currentPage.setSlideGrid === 'function') {
+      // Validate and convert slide IDs to nodes
+      const slideArrangements = [];
+      for (const row of slides) {
+        const slideNodes = [];
+        for (const slideId of row) {
+          const node = await figma.getNodeByIdAsync(slideId);
+          if (!node || node.type !== "SLIDE") {
+            throw new Error(`Invalid slide ID: ${slideId}`);
+          }
+          slideNodes.push(node);
+        }
+        slideArrangements.push(slideNodes);
       }
-      slideNodes.push(node);
+
+      // Apply the new slide grid arrangement
+      figma.currentPage.setSlideGrid(slideArrangements);
+
+      return {
+        success: true,
+        message: `Slide grid updated with ${slides.length} rows`,
+      };
+    } else {
+      // Fallback implementation: manually arrange slides
+      const slideGrid = figma.currentPage.findOne(n => n.type === 'SLIDE_GRID');
+      if (!slideGrid) {
+        throw new Error('No slide grid found in current page');
+      }
+      
+      // Constants for slide spacing (based on standard slide dimensions)
+      const SLIDE_WIDTH = 1920;
+      const SLIDE_HEIGHT = 1080;
+      const HORIZONTAL_SPACING = 240;
+      const VERTICAL_SPACING = 240;
+      const INITIAL_X = 240;
+      const INITIAL_Y = 240;
+      
+      let currentY = INITIAL_Y;
+      let successCount = 0;
+      
+      for (let rowIndex = 0; rowIndex < slides.length; rowIndex++) {
+        const row = slides[rowIndex];
+        let currentX = INITIAL_X;
+        
+        for (let colIndex = 0; colIndex < row.length; colIndex++) {
+          const slideId = row[colIndex];
+          const node = await figma.getNodeByIdAsync(slideId);
+          
+          if (!node || node.type !== "SLIDE") {
+            console.warn(`Skipping invalid slide ID: ${slideId}`);
+            continue;
+          }
+          
+          // Position the slide
+          node.x = currentX;
+          node.y = currentY;
+          successCount++;
+          
+          // Move to next column position
+          currentX += SLIDE_WIDTH + HORIZONTAL_SPACING;
+        }
+        
+        // Move to next row position
+        currentY += SLIDE_HEIGHT + VERTICAL_SPACING;
+      }
+      
+      return {
+        success: true,
+        message: `Manually arranged ${successCount} slides in ${slides.length} rows`,
+      };
     }
-    slideArrangements.push(slideNodes);
+  } catch (error) {
+    throw new Error(`Failed to set slide grid: ${error.message}`);
   }
-
-  // Apply the new slide grid arrangement
-  figma.currentPage.setSlideGrid(slideArrangements);
-
-  return {
-    success: true,
-    message: `Slide grid updated with ${slides.length} rows`,
-  };
 }
 
 async function getFocusedSlide() {
@@ -1123,9 +1267,26 @@ async function getSlidesMode() {
     throw new Error("getSlidesMode can only be used in Figma Slides documents");
   }
 
-  return {
-    mode: figma.viewport.slidesMode
-  };
+  try {
+    // Check if the slidesMode property exists
+    if (figma.viewport && 'slidesMode' in figma.viewport) {
+      const mode = figma.viewport.slidesMode;
+      
+      // Map API values back to our expected values
+      const modeMap = {
+        'GRID': 'grid',
+        'SINGLE_SLIDE': 'single-slide'
+      };
+      
+      return {
+        mode: modeMap[mode] || mode
+      };
+    } else {
+      throw new Error("Slides mode API not available in current Figma version");
+    }
+  } catch (error) {
+    throw new Error(`Failed to get slides mode: ${error.message}`);
+  }
 }
 
 async function setSlidesMode(params) {
@@ -1144,12 +1305,36 @@ async function setSlidesMode(params) {
     throw new Error("Invalid mode. Must be 'grid' or 'single-slide'");
   }
 
-  figma.viewport.slidesMode = mode;
-
-  return {
-    success: true,
-    mode: figma.viewport.slidesMode
-  };
+  try {
+    // Check if the slidesMode property exists and is writable
+    if (figma.viewport && 'slidesMode' in figma.viewport) {
+      // Try to set the slides mode
+      const modeMap = {
+        'grid': 'GRID',
+        'single-slide': 'SINGLE_SLIDE'
+      };
+      
+      // Use the mapped value or original if mapping doesn't exist
+      const mappedMode = modeMap[mode] || mode;
+      
+      // Try different approaches to set the mode
+      if (typeof figma.viewport.setViewMode === 'function') {
+        await figma.viewport.setViewMode(mappedMode);
+      } else {
+        // Try direct assignment
+        figma.viewport.slidesMode = mappedMode;
+      }
+      
+      return {
+        success: true,
+        mode: mode
+      };
+    } else {
+      throw new Error("Slides mode API not available in current Figma version");
+    }
+  } catch (error) {
+    throw new Error(`Failed to set slides mode: ${error.message}`);
+  }
 }
 
 async function getSlideGrid() {
@@ -1158,22 +1343,78 @@ async function getSlideGrid() {
     throw new Error("getSlideGrid can only be used in Figma Slides documents");
   }
 
-  const grid = figma.currentPage.getSlideGrid();
-  
-  // Convert slide nodes to basic info
-  const gridInfo = grid.map(row => 
-    row.map(slide => ({
-      id: slide.id,
-      name: slide.name,
-      type: slide.type
-    }))
-  );
+  try {
+    // Check if getSlideGrid method exists
+    if (typeof figma.currentPage.getSlideGrid === 'function') {
+      const grid = figma.currentPage.getSlideGrid();
+      
+      // Convert slide nodes to basic info
+      const gridInfo = grid.map(row => 
+        row.map(slide => ({
+          id: slide.id,
+          name: slide.name,
+          type: slide.type
+        }))
+      );
 
-  return {
-    grid: gridInfo,
-    totalSlides: grid.flat().length,
-    rows: grid.length
-  };
+      return {
+        grid: gridInfo,
+        totalSlides: grid.flat().length,
+        rows: grid.length
+      };
+    } else {
+      // Fallback implementation: manually build grid from slide positions
+      const slideGrid = figma.currentPage.findOne(n => n.type === 'SLIDE_GRID');
+      if (!slideGrid) {
+        throw new Error('No slide grid found in current page');
+      }
+      
+      // Get all slides
+      const slides = slideGrid.children.filter(n => n.type === 'SLIDE');
+      if (slides.length === 0) {
+        return { grid: [], totalSlides: 0, rows: 0 };
+      }
+      
+      // Sort slides by position to determine grid structure
+      const sortedSlides = [...slides].sort((a, b) => {
+        if (Math.abs(a.y - b.y) < 10) {
+          return a.x - b.x; // Same row, sort by x
+        }
+        return a.y - b.y; // Different rows, sort by y
+      });
+      
+      // Group slides into rows based on y position
+      const rows = [];
+      let currentRow = [];
+      let currentY = sortedSlides[0].y;
+      
+      for (const slide of sortedSlides) {
+        if (Math.abs(slide.y - currentY) > 100) {
+          // New row detected
+          rows.push(currentRow);
+          currentRow = [];
+          currentY = slide.y;
+        }
+        currentRow.push({
+          id: slide.id,
+          name: slide.name,
+          type: slide.type
+        });
+      }
+      
+      if (currentRow.length > 0) {
+        rows.push(currentRow);
+      }
+      
+      return {
+        grid: rows,
+        totalSlides: slides.length,
+        rows: rows.length
+      };
+    }
+  } catch (error) {
+    throw new Error(`Failed to get slide grid: ${error.message}`);
+  }
 }
 
 async function createText(params) {
@@ -1214,9 +1455,24 @@ async function createText(params) {
     }
   };
 
+  // Handle coordinate transformation for slides
+  let actualX = x;
+  let actualY = y;
+  let targetSlide = null;
+  
+  if (figma.editorType === "slides") {
+    targetSlide = await getTargetSlide(parentId);
+    if (targetSlide) {
+      // Convert local coordinates to absolute coordinates
+      const absoluteCoords = toAbsoluteCoordinates(targetSlide, x, y);
+      actualX = absoluteCoords.x;
+      actualY = absoluteCoords.y;
+    }
+  }
+  
   const textNode = figma.createText();
-  textNode.x = x;
-  textNode.y = y;
+  textNode.x = actualX;
+  textNode.y = actualY;
   textNode.name = name || text;
   try {
     await figma.loadFontAsync({
@@ -1296,9 +1552,30 @@ async function createShapeWithText(params) {
     throw new Error("createShapeWithText is only available in Figma Slides and FigJam");
   }
 
+  // Check if createShapeWithText method exists
+  if (typeof figma.createShapeWithText !== 'function') {
+    throw new Error("createShapeWithText API is not available. Please ensure you're using the latest version of Figma with Slides/FigJam support.");
+  }
+
   const shapeWithText = figma.createShapeWithText();
-  shapeWithText.x = x;
-  shapeWithText.y = y;
+  
+  // Handle coordinate transformation for slides
+  let actualX = x;
+  let actualY = y;
+  let targetSlide = null;
+  
+  if (figma.editorType === "slides") {
+    targetSlide = await getTargetSlide(parentId);
+    if (targetSlide) {
+      // Convert local coordinates to absolute coordinates
+      const absoluteCoords = toAbsoluteCoordinates(targetSlide, x, y);
+      actualX = absoluteCoords.x;
+      actualY = absoluteCoords.y;
+    }
+  }
+  
+  shapeWithText.x = actualX;
+  shapeWithText.y = actualY;
   shapeWithText.resize(width, height);
   shapeWithText.name = name;
   shapeWithText.shapeType = shapeType;
@@ -1374,7 +1651,7 @@ async function createShapeWithText(params) {
     figma.currentPage.appendChild(shapeWithText);
   }
 
-  return {
+  const result = {
     id: shapeWithText.id,
     name: shapeWithText.name,
     x: shapeWithText.x,
@@ -1385,6 +1662,16 @@ async function createShapeWithText(params) {
     text: shapeWithText.text.characters,
     parentId: shapeWithText.parent ? shapeWithText.parent.id : undefined,
   };
+  
+  // Include local coordinates if on a slide
+  if (targetSlide) {
+    const localCoords = toLocalCoordinates(targetSlide, shapeWithText.x, shapeWithText.y);
+    result.localX = localCoords.x;
+    result.localY = localCoords.y;
+    result.slideId = targetSlide.id;
+  }
+  
+  return result;
 }
 
 async function createTable(params) {
@@ -1404,49 +1691,150 @@ async function createTable(params) {
     throw new Error("createTable is only available in Figma Design and Slides");
   }
 
-  const table = figma.createTable();
-  table.x = x;
-  table.y = y;
-  table.name = name;
-  
-  // Resize the table to accommodate the cells
-  table.resize(columns * cellWidth, rows * cellHeight);
-
-  // Create cells
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < columns; col++) {
-      const cell = table.cellAt(row, col);
-      if (cell) {
-        cell.resize(cellWidth, cellHeight);
+  try {
+    // Handle coordinate transformation for slides
+    let actualX = x;
+    let actualY = y;
+    let targetSlide = null;
+    
+    if (figma.editorType === "slides") {
+      targetSlide = await getTargetSlide(parentId);
+      if (targetSlide) {
+        // Convert local coordinates to absolute coordinates
+        const absoluteCoords = toAbsoluteCoordinates(targetSlide, x, y);
+        actualX = absoluteCoords.x;
+        actualY = absoluteCoords.y;
       }
     }
-  }
+    
+    // Check if createTable method exists
+    if (typeof figma.createTable === 'function') {
+      const table = figma.createTable();
+      table.x = actualX;
+      table.y = actualY;
+      table.name = name;
+      
+      // Resize the table to accommodate the cells
+      table.resize(columns * cellWidth, rows * cellHeight);
 
-  // Append to parent or current page
-  if (parentId) {
-    const parentNode = await figma.getNodeByIdAsync(parentId);
-    if (!parentNode) {
-      throw new Error(`Parent node not found with ID: ${parentId}`);
-    }
-    if (!("appendChild" in parentNode)) {
-      throw new Error(`Parent node does not support children: ${parentId}`);
-    }
-    parentNode.appendChild(table);
-  } else {
-    figma.currentPage.appendChild(table);
-  }
+      // Create cells
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < columns; col++) {
+          const cell = table.cellAt(row, col);
+          if (cell) {
+            cell.resize(cellWidth, cellHeight);
+          }
+        }
+      }
 
-  return {
-    id: table.id,
-    name: table.name,
-    x: table.x,
-    y: table.y,
-    width: table.width,
-    height: table.height,
-    rows: rows,
-    columns: columns,
-    parentId: table.parent ? table.parent.id : undefined,
-  };
+      // Append to parent or current page
+      if (parentId) {
+        const parentNode = await figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(table);
+      } else {
+        figma.currentPage.appendChild(table);
+      }
+
+      return {
+        id: table.id,
+        name: table.name,
+        x: table.x,
+        y: table.y,
+        width: table.width,
+        height: table.height,
+        rows: rows,
+        columns: columns,
+        parentId: table.parent ? table.parent.id : undefined,
+      };
+    } else {
+      // Fallback: Create table-like structure with frames
+      const tableFrame = figma.createFrame();
+      tableFrame.name = name;
+      tableFrame.x = actualX;
+      tableFrame.y = actualY;
+      tableFrame.layoutMode = "VERTICAL";
+      tableFrame.itemSpacing = 0;
+      tableFrame.paddingLeft = 0;
+      tableFrame.paddingRight = 0;
+      tableFrame.paddingTop = 0;
+      tableFrame.paddingBottom = 0;
+      tableFrame.clipsContent = true;
+      
+      // Create rows
+      for (let r = 0; r < rows; r++) {
+        const rowFrame = figma.createFrame();
+        rowFrame.name = `Row ${r + 1}`;
+        rowFrame.layoutMode = "HORIZONTAL";
+        rowFrame.itemSpacing = 0;
+        rowFrame.layoutSizingHorizontal = "HUG";
+        rowFrame.layoutSizingVertical = "HUG";
+        
+        // Create cells in each row
+        for (let c = 0; c < columns; c++) {
+          const cellFrame = figma.createFrame();
+          cellFrame.name = `Cell ${r + 1}-${c + 1}`;
+          cellFrame.resize(cellWidth, cellHeight);
+          
+          // Add border to cells
+          cellFrame.strokes = [{
+            type: 'SOLID',
+            color: { r: 0.8, g: 0.8, b: 0.8 }
+          }];
+          cellFrame.strokeWeight = 1;
+          cellFrame.strokeAlign = "INSIDE";
+          
+          // Add white background
+          cellFrame.fills = [{
+            type: 'SOLID',
+            color: { r: 1, g: 1, b: 1 }
+          }];
+          
+          rowFrame.appendChild(cellFrame);
+        }
+        
+        tableFrame.appendChild(rowFrame);
+      }
+      
+      // Resize table frame to fit content
+      tableFrame.resize(columns * cellWidth, rows * cellHeight);
+      
+      // Append to parent or current page
+      if (parentId) {
+        const parentNode = await figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(tableFrame);
+      } else {
+        figma.currentPage.appendChild(tableFrame);
+      }
+      
+      return {
+        id: tableFrame.id,
+        name: tableFrame.name,
+        x: tableFrame.x,
+        y: tableFrame.y,
+        width: tableFrame.width,
+        height: tableFrame.height,
+        rows: rows,
+        columns: columns,
+        type: "TABLE_FRAME", // Custom type to indicate fallback
+        parentId: tableFrame.parent ? tableFrame.parent.id : undefined,
+        message: "Created table-like structure using frames (native table API not available)"
+      };
+    }
+  } catch (error) {
+    throw new Error(`Failed to create table: ${error.message}`);
+  }
 }
 
 async function createGif(params) {
@@ -1470,36 +1858,157 @@ async function createGif(params) {
   }
 
   try {
-    const gif = await figma.createGifAsync(url);
-    gif.x = x;
-    gif.y = y;
-    gif.resize(width, height);
-    gif.name = name;
-
-    // Append to parent or current page
-    if (parentId) {
-      const parentNode = await figma.getNodeByIdAsync(parentId);
-      if (!parentNode) {
-        throw new Error(`Parent node not found with ID: ${parentId}`);
+    // Handle coordinate transformation for slides
+    let actualX = x;
+    let actualY = y;
+    let targetSlide = null;
+    
+    if (figma.editorType === "slides") {
+      targetSlide = await getTargetSlide(parentId);
+      if (targetSlide) {
+        // Convert local coordinates to absolute coordinates
+        const absoluteCoords = toAbsoluteCoordinates(targetSlide, x, y);
+        actualX = absoluteCoords.x;
+        actualY = absoluteCoords.y;
       }
-      if (!("appendChild" in parentNode)) {
-        throw new Error(`Parent node does not support children: ${parentId}`);
-      }
-      parentNode.appendChild(gif);
-    } else {
-      figma.currentPage.appendChild(gif);
     }
+    
+    // Check if createGifAsync method exists
+    if (typeof figma.createGifAsync === 'function') {
+      const gif = await figma.createGifAsync(url);
+      gif.x = actualX;
+      gif.y = actualY;
+      gif.resize(width, height);
+      gif.name = name;
 
-    return {
-      id: gif.id,
-      name: gif.name,
-      x: gif.x,
-      y: gif.y,
-      width: gif.width,
-      height: gif.height,
-      url: url,
-      parentId: gif.parent ? gif.parent.id : undefined,
-    };
+      // Append to parent or current page
+      if (parentId) {
+        const parentNode = await figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(gif);
+      } else {
+        figma.currentPage.appendChild(gif);
+      }
+
+      return {
+        id: gif.id,
+        name: gif.name,
+        x: gif.x,
+        y: gif.y,
+        width: gif.width,
+        height: gif.height,
+        url: url,
+        parentId: gif.parent ? gif.parent.id : undefined,
+      };
+    } else if (typeof figma.createMedia === 'function') {
+      // Try createMedia as alternative
+      const media = figma.createMedia();
+      media.x = actualX;
+      media.y = actualY;
+      media.resize(width, height);
+      media.name = name;
+      
+      // Note: setMediaAsync would require fetching and converting the GIF
+      // For now, we'll create a placeholder
+      
+      // Append to parent or current page
+      if (parentId) {
+        const parentNode = await figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(media);
+      } else {
+        figma.currentPage.appendChild(media);
+      }
+
+      return {
+        id: media.id,
+        name: media.name,
+        x: media.x,
+        y: media.y,
+        width: media.width,
+        height: media.height,
+        url: url,
+        type: media.type,
+        parentId: media.parent ? media.parent.id : undefined,
+        message: "Created media placeholder - GIF upload requires additional implementation"
+      };
+    } else {
+      // Fallback: Create a frame with an image fill placeholder
+      const placeholder = figma.createFrame();
+      placeholder.name = name;
+      placeholder.x = actualX;
+      placeholder.y = actualY;
+      placeholder.resize(width, height);
+      
+      // Add a semi-transparent fill to indicate it's a placeholder
+      placeholder.fills = [{
+        type: 'SOLID',
+        color: { r: 0.9, g: 0.9, b: 0.9 },
+        opacity: 0.5
+      }];
+      
+      // Add stroke to make it visible
+      placeholder.strokes = [{
+        type: 'SOLID',
+        color: { r: 0.5, g: 0.5, b: 0.5 }
+      }];
+      placeholder.strokeWeight = 2;
+      placeholder.strokeAlign = "INSIDE";
+      
+      // Add a text label
+      const label = figma.createText();
+      try {
+        await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+        label.fontName = { family: "Inter", style: "Regular" };
+        label.characters = "GIF Placeholder\n" + url.substring(0, 30) + "...";
+        label.fontSize = 14;
+        label.textAlignHorizontal = "CENTER";
+        label.textAlignVertical = "CENTER";
+        label.resize(width - 20, height - 20);
+        label.x = 10;
+        label.y = 10;
+        placeholder.appendChild(label);
+      } catch (fontError) {
+        console.warn("Could not load font for GIF placeholder label");
+      }
+      
+      // Append to parent or current page
+      if (parentId) {
+        const parentNode = await figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(placeholder);
+      } else {
+        figma.currentPage.appendChild(placeholder);
+      }
+      
+      return {
+        id: placeholder.id,
+        name: placeholder.name,
+        x: placeholder.x,
+        y: placeholder.y,
+        width: placeholder.width,
+        height: placeholder.height,
+        url: url,
+        type: "GIF_PLACEHOLDER",
+        parentId: placeholder.parent ? placeholder.parent.id : undefined,
+        message: "Created GIF placeholder frame (native GIF API not available)"
+      };
+    }
   } catch (error) {
     throw new Error(`Failed to create GIF: ${error.message}`);
   }
@@ -3051,6 +3560,527 @@ async function setMultipleTextContents(params) {
     completedInChunks: chunks.length,
     commandId,
   };
+}
+
+// Text styling functions
+
+async function setTextStyleRange(params) {
+  const { nodeId, start, end, bold, italic, underline, strikethrough } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    // Load fonts for the range
+    const fonts = node.getRangeAllFontNames(start, end);
+    await Promise.all(fonts.map(font => figma.loadFontAsync(font)));
+
+    // Apply text decorations
+    if (underline !== undefined || strikethrough !== undefined) {
+      let decoration = "NONE";
+      if (underline && strikethrough) {
+        decoration = "UNDERLINE_STRIKETHROUGH";
+      } else if (underline) {
+        decoration = "UNDERLINE";
+      } else if (strikethrough) {
+        decoration = "STRIKETHROUGH";
+      }
+      node.setRangeTextDecoration(start, end, decoration);
+    }
+
+    // Apply font weight for bold
+    if (bold !== undefined) {
+      const currentFont = node.getRangeFontName(start, end);
+      if (currentFont !== figma.mixed) {
+        const newStyle = bold ? "Bold" : "Regular";
+        const newFont = { family: currentFont.family, style: newStyle };
+        
+        // Try to load the bold/regular variant
+        try {
+          await figma.loadFontAsync(newFont);
+          node.setRangeFontName(start, end, newFont);
+        } catch (e) {
+          console.warn(`Could not load ${newFont.family} ${newFont.style}, using font weight instead`);
+          // Fallback to font weight if style not available
+          node.setRangeFontWeight(start, end, bold ? 700 : 400);
+        }
+      }
+    }
+
+    // Note: Italic would be handled similarly by changing font style to "Italic"
+    if (italic !== undefined) {
+      const currentFont = node.getRangeFontName(start, end);
+      if (currentFont !== figma.mixed) {
+        const newStyle = italic ? "Italic" : "Regular";
+        const newFont = { family: currentFont.family, style: newStyle };
+        
+        try {
+          await figma.loadFontAsync(newFont);
+          node.setRangeFontName(start, end, newFont);
+        } catch (e) {
+          console.warn(`Could not load ${newFont.family} ${newFont.style}`);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      styles: {
+        bold: bold,
+        italic: italic,
+        underline: underline,
+        strikethrough: strikethrough
+      }
+    };
+  } catch (error) {
+    throw new Error(`Failed to set text style: ${error.message}`);
+  }
+}
+
+async function getTextStyleRange(params) {
+  const { nodeId, start, end } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    const decoration = node.getRangeTextDecoration(start, end);
+    const fontName = node.getRangeFontName(start, end);
+    const fontWeight = node.getRangeFontWeight(start, end);
+    
+    let styles = {
+      underline: false,
+      strikethrough: false,
+      bold: false,
+      italic: false
+    };
+
+    // Parse text decoration
+    if (decoration !== figma.mixed) {
+      styles.underline = decoration.includes("UNDERLINE");
+      styles.strikethrough = decoration.includes("STRIKETHROUGH");
+    }
+
+    // Parse font style
+    if (fontName !== figma.mixed) {
+      styles.italic = fontName.style.toLowerCase().includes("italic");
+      styles.bold = fontName.style.toLowerCase().includes("bold");
+    } else if (fontWeight !== figma.mixed) {
+      styles.bold = fontWeight >= 600;
+    }
+
+    return {
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      styles: styles,
+      decoration: decoration,
+      fontName: fontName,
+      fontWeight: fontWeight
+    };
+  } catch (error) {
+    throw new Error(`Failed to get text style: ${error.message}`);
+  }
+}
+
+async function setTextDecorationRange(params) {
+  const { nodeId, start, end, style, color, thickness, offset, skipInk } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    // Load fonts for the range
+    const fonts = node.getRangeAllFontNames(start, end);
+    await Promise.all(fonts.map(font => figma.loadFontAsync(font)));
+
+    // Set decoration style if provided
+    if (style !== undefined) {
+      node.setRangeTextDecorationStyle(start, end, style);
+    }
+
+    // Set decoration color if provided
+    if (color !== undefined) {
+      node.setRangeTextDecorationColor(start, end, color);
+    }
+
+    // Set decoration thickness if provided
+    if (thickness !== undefined) {
+      node.setRangeTextDecorationThickness(start, end, thickness);
+    }
+
+    // Set decoration offset if provided
+    if (offset !== undefined) {
+      node.setRangeTextDecorationOffset(start, end, offset);
+    }
+
+    // Set skip ink if provided
+    if (skipInk !== undefined) {
+      node.setRangeTextDecorationSkipInk(start, end, skipInk);
+    }
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      decoration: {
+        style: style,
+        color: color,
+        thickness: thickness,
+        offset: offset,
+        skipInk: skipInk
+      }
+    };
+  } catch (error) {
+    throw new Error(`Failed to set text decoration: ${error.message}`);
+  }
+}
+
+async function getTextDecorationRange(params) {
+  const { nodeId, start, end } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    const decoration = {
+      style: node.getRangeTextDecorationStyle(start, end),
+      color: node.getRangeTextDecorationColor(start, end),
+      thickness: node.getRangeTextDecorationThickness(start, end),
+      offset: node.getRangeTextDecorationOffset(start, end),
+      skipInk: node.getRangeTextDecorationSkipInk(start, end)
+    };
+
+    return {
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      decoration: decoration
+    };
+  } catch (error) {
+    throw new Error(`Failed to get text decoration: ${error.message}`);
+  }
+}
+
+async function setRangeFont(params) {
+  const { nodeId, start, end, fontFamily, fontStyle } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  if (!fontFamily) {
+    throw new Error("Missing fontFamily parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    const font = { family: fontFamily, style: fontStyle || "Regular" };
+    
+    // Load the font
+    await figma.loadFontAsync(font);
+    
+    // Set the font for the range
+    node.setRangeFontName(start, end, font);
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      font: font
+    };
+  } catch (error) {
+    throw new Error(`Failed to set font: ${error.message}`);
+  }
+}
+
+async function setRangeFontSize(params) {
+  const { nodeId, start, end, fontSize } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  if (fontSize === undefined) {
+    throw new Error("Missing fontSize parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    // Load fonts for the range
+    const fonts = node.getRangeAllFontNames(start, end);
+    await Promise.all(fonts.map(font => figma.loadFontAsync(font)));
+
+    // Set the font size for the range
+    node.setRangeFontSize(start, end, fontSize);
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      fontSize: fontSize
+    };
+  } catch (error) {
+    throw new Error(`Failed to set font size: ${error.message}`);
+  }
+}
+
+async function setRangeFills(params) {
+  const { nodeId, start, end, color } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (start === undefined || end === undefined) {
+    throw new Error("Missing start or end parameters");
+  }
+
+  if (!color) {
+    throw new Error("Missing color parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    // Load fonts for the range
+    const fonts = node.getRangeAllFontNames(start, end);
+    await Promise.all(fonts.map(font => figma.loadFontAsync(font)));
+
+    // Create paint from color
+    const paint = {
+      type: "SOLID",
+      color: {
+        r: parseFloat(color.r) || 0,
+        g: parseFloat(color.g) || 0,
+        b: parseFloat(color.b) || 0
+      },
+      opacity: parseFloat(color.a) || 1
+    };
+
+    // Set the fills for the range
+    node.setRangeFills(start, end, [paint]);
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      start: start,
+      end: end,
+      color: color
+    };
+  } catch (error) {
+    throw new Error(`Failed to set text color: ${error.message}`);
+  }
+}
+
+async function getStyledTextSegments(params) {
+  const { nodeId, fields, start, end } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (!fields || !Array.isArray(fields)) {
+    throw new Error("Missing or invalid fields parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a text node: ${nodeId}`);
+  }
+
+  try {
+    // Get styled segments
+    const segments = node.getStyledTextSegments(fields, start, end);
+
+    return {
+      nodeId: nodeId,
+      segments: segments,
+      fields: fields
+    };
+  } catch (error) {
+    throw new Error(`Failed to get styled text segments: ${error.message}`);
+  }
+}
+
+// Component description functions
+
+async function setComponentDescription(params) {
+  const { nodeId, descriptionMarkdown } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (descriptionMarkdown === undefined) {
+    throw new Error("Missing descriptionMarkdown parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "COMPONENT" && node.type !== "COMPONENT_SET") {
+    throw new Error(`Node is not a component: ${nodeId}`);
+  }
+
+  try {
+    // Normalize the markdown if needed
+    const normalized = figma.util.normalizeMarkdown(descriptionMarkdown);
+    
+    // Set the description
+    node.descriptionMarkdown = normalized;
+
+    return {
+      success: true,
+      nodeId: nodeId,
+      descriptionMarkdown: node.descriptionMarkdown,
+      normalized: normalized !== descriptionMarkdown
+    };
+  } catch (error) {
+    throw new Error(`Failed to set component description: ${error.message}`);
+  }
+}
+
+async function getComponentDescription(params) {
+  const { nodeId } = params || {};
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "COMPONENT" && node.type !== "COMPONENT_SET") {
+    throw new Error(`Node is not a component: ${nodeId}`);
+  }
+
+  return {
+    nodeId: nodeId,
+    descriptionMarkdown: node.descriptionMarkdown || "",
+    type: node.type
+  };
+}
+
+async function normalizeMarkdown(params) {
+  const { markdown } = params || {};
+
+  if (markdown === undefined) {
+    throw new Error("Missing markdown parameter");
+  }
+
+  try {
+    const normalized = figma.util.normalizeMarkdown(markdown);
+    
+    return {
+      original: markdown,
+      normalized: normalized,
+      changed: normalized !== markdown
+    };
+  } catch (error) {
+    throw new Error(`Failed to normalize markdown: ${error.message}`);
+  }
 }
 
 // Function to generate simple UUIDs for command IDs

@@ -2594,7 +2594,18 @@ type FigmaCommand =
   | "get_slide_grid"
   | "create_shape_with_text"
   | "create_table"
-  | "create_gif";
+  | "create_gif"
+  | "set_text_style_range"
+  | "get_text_style_range"
+  | "set_text_decoration_range"
+  | "get_text_decoration_range"
+  | "set_range_font"
+  | "set_range_font_size"
+  | "set_range_fills"
+  | "get_styled_text_segments"
+  | "set_component_description"
+  | "get_component_description"
+  | "normalize_markdown";
 
 type CommandParams = {
   get_document_info: Record<string, never>;
@@ -2806,6 +2817,70 @@ type CommandParams = {
     height?: number;
     name?: string;
     parentId?: string;
+  };
+  set_text_style_range: {
+    nodeId: string;
+    start: number;
+    end: number;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strikethrough?: boolean;
+  };
+  get_text_style_range: {
+    nodeId: string;
+    start: number;
+    end: number;
+  };
+  set_text_decoration_range: {
+    nodeId: string;
+    start: number;
+    end: number;
+    style?: string;
+    color?: { r: number; g: number; b: number; a?: number };
+    thickness?: string;
+    offset?: string;
+    skipInk?: boolean;
+  };
+  get_text_decoration_range: {
+    nodeId: string;
+    start: number;
+    end: number;
+  };
+  set_range_font: {
+    nodeId: string;
+    start: number;
+    end: number;
+    fontFamily: string;
+    fontStyle?: string;
+  };
+  set_range_font_size: {
+    nodeId: string;
+    start: number;
+    end: number;
+    fontSize: number;
+  };
+  set_range_fills: {
+    nodeId: string;
+    start: number;
+    end: number;
+    color: { r: number; g: number; b: number; a?: number };
+  };
+  get_styled_text_segments: {
+    nodeId: string;
+    fields: string[];
+    start?: number;
+    end?: number;
+  };
+  set_component_description: {
+    nodeId: string;
+    descriptionMarkdown: string;
+  };
+  get_component_description: {
+    nodeId: string;
+  };
+  normalize_markdown: {
+    markdown: string;
   };
 };
 
@@ -3449,6 +3524,382 @@ server.tool(
       };
     } catch (error) {
       throw new Error(`Failed to create GIF: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Text styling tools
+
+server.tool(
+  "set_text_style_range",
+  "Apply text styling (bold, italic, underline, strikethrough) to a specific range of text in a text node",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+    bold: z.boolean().optional().describe("Apply bold styling"),
+    italic: z.boolean().optional().describe("Apply italic styling"),
+    underline: z.boolean().optional().describe("Apply underline styling"),
+    strikethrough: z.boolean().optional().describe("Apply strikethrough styling"),
+  },
+  async ({ nodeId, start, end, bold, italic, underline, strikethrough }) => {
+    try {
+      const result = await sendCommandToFigma("set_text_style_range", {
+        nodeId,
+        start,
+        end,
+        bold,
+        italic,
+        underline,
+        strikethrough,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Applied text styling to range [${start}, ${end}) in node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set text style: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_text_style_range",
+  "Get the text styling (bold, italic, underline, strikethrough) for a specific range of text",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+  },
+  async ({ nodeId, start, end }) => {
+    try {
+      const result = await sendCommandToFigma("get_text_style_range", {
+        nodeId,
+        start,
+        end,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get text style: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_text_decoration_range",
+  "Set advanced text decoration properties (style, color, thickness, offset) for a text range",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+    style: z.enum(["SOLID", "DOUBLE", "DOTTED", "DASHED", "WAVY"]).optional().describe("Decoration style"),
+    color: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)"),
+    }).optional().describe("Decoration color"),
+    thickness: z.enum(["FROM_FONT", "CUSTOM"]).optional().describe("Decoration thickness"),
+    offset: z.enum(["FROM_FONT", "CUSTOM"]).optional().describe("Decoration offset"),
+    skipInk: z.boolean().optional().describe("Whether decoration skips over descenders"),
+  },
+  async ({ nodeId, start, end, style, color, thickness, offset, skipInk }) => {
+    try {
+      const result = await sendCommandToFigma("set_text_decoration_range", {
+        nodeId,
+        start,
+        end,
+        style,
+        color,
+        thickness,
+        offset,
+        skipInk,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Applied text decoration to range [${start}, ${end}) in node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set text decoration: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_text_decoration_range",
+  "Get the text decoration properties for a specific text range",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+  },
+  async ({ nodeId, start, end }) => {
+    try {
+      const result = await sendCommandToFigma("get_text_decoration_range", {
+        nodeId,
+        start,
+        end,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get text decoration: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_range_font",
+  "Set the font family and style for a specific text range",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+    fontFamily: z.string().describe("Font family name (e.g., 'Inter', 'Roboto')"),
+    fontStyle: z.string().optional().describe("Font style (e.g., 'Regular', 'Bold', 'Italic')").default("Regular"),
+  },
+  async ({ nodeId, start, end, fontFamily, fontStyle }) => {
+    try {
+      const result = await sendCommandToFigma("set_range_font", {
+        nodeId,
+        start,
+        end,
+        fontFamily,
+        fontStyle,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Applied font ${fontFamily} ${fontStyle} to range [${start}, ${end}) in node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set font: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_range_font_size",
+  "Set the font size for a specific text range",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+    fontSize: z.number().min(1).describe("Font size in pixels"),
+  },
+  async ({ nodeId, start, end, fontSize }) => {
+    try {
+      const result = await sendCommandToFigma("set_range_font_size", {
+        nodeId,
+        start,
+        end,
+        fontSize,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Applied font size ${fontSize} to range [${start}, ${end}) in node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set font size: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "set_range_fills",
+  "Set the text color for a specific text range",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    start: z.number().describe("Start index of the range (inclusive)"),
+    end: z.number().describe("End index of the range (exclusive)"),
+    color: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)").default(1),
+    }).describe("Text color"),
+  },
+  async ({ nodeId, start, end, color }) => {
+    try {
+      const result = await sendCommandToFigma("set_range_fills", {
+        nodeId,
+        start,
+        end,
+        color,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Applied color to range [${start}, ${end}) in node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set text color: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_styled_text_segments",
+  "Get detailed text segments with all their styling properties",
+  {
+    nodeId: z.string().describe("The ID of the text node"),
+    fields: z.array(z.enum([
+      "fontSize",
+      "fontName",
+      "fontWeight",
+      "textDecoration",
+      "textDecorationStyle",
+      "textDecorationOffset",
+      "textDecorationThickness",
+      "textDecorationColor",
+      "textDecorationSkipInk",
+      "textCase",
+      "lineHeight",
+      "letterSpacing",
+      "fills",
+      "textStyleId",
+      "fillStyleId",
+      "listOptions",
+      "listSpacing",
+      "indentation",
+      "paragraphIndent",
+      "paragraphSpacing",
+      "hyperlink",
+      "boundVariables",
+      "textStyleOverrides",
+      "openTypeFeatures"
+    ])).describe("Text properties to retrieve"),
+    start: z.number().optional().describe("Optional start index"),
+    end: z.number().optional().describe("Optional end index"),
+  },
+  async ({ nodeId, fields, start, end }) => {
+    try {
+      const result = await sendCommandToFigma("get_styled_text_segments", {
+        nodeId,
+        fields,
+        start,
+        end,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get styled text segments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+// Component description tools
+
+server.tool(
+  "set_component_description",
+  "Set the description of a component with Markdown formatting support",
+  {
+    nodeId: z.string().describe("The ID of the component node"),
+    descriptionMarkdown: z.string().describe("Component description in Markdown format. Supports: paragraphs (\\n), lists (-, *), headings (##), bold (**), italic (*), strikethrough (~~), links [text](url), code (`code`), code blocks (```code```)"),
+  },
+  async ({ nodeId, descriptionMarkdown }) => {
+    try {
+      const result = await sendCommandToFigma("set_component_description", {
+        nodeId,
+        descriptionMarkdown,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Set component description for node ${nodeId}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to set component description: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "get_component_description",
+  "Get the description of a component in Markdown format",
+  {
+    nodeId: z.string().describe("The ID of the component node"),
+  },
+  async ({ nodeId }) => {
+    try {
+      const result = await sendCommandToFigma("get_component_description", {
+        nodeId,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to get component description: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+);
+
+server.tool(
+  "normalize_markdown",
+  "Normalize Markdown text to match Figma's supported subset",
+  {
+    markdown: z.string().describe("Markdown text to normalize"),
+  },
+  async ({ markdown }) => {
+    try {
+      const result = await sendCommandToFigma("normalize_markdown", {
+        markdown,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error(`Failed to normalize markdown: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 );

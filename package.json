@@ -1,7 +1,7 @@
 {
   "name": "figma-copilot",
   "description": "Enhanced Figma MCP server with improved font handling and additional features. Unofficial tool, not affiliated with Figma, Inc.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "xlzuvekas",
   "license": "MIT",
   "keywords": [
