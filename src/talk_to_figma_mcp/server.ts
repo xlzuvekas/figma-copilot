@@ -196,21 +196,31 @@ server.tool(
   }
 );
 
-// Node Info Tool
+// Node Info Tool (DEPRECATED - Use get_nodes instead)
 server.tool(
   "get_node_info",
-  "Get detailed information about a specific node in Figma",
+  "[DEPRECATED] Get detailed information about a specific node in Figma. Use 'get_nodes' instead.",
   {
     nodeId: z.string().describe("The ID of the node to get information about"),
   },
   async ({ nodeId }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_node_info is deprecated. Use get_nodes instead.');
+    
     try {
+      // Call the unified get_nodes tool
       const result = await sendCommandToFigma("get_node_info", { nodeId });
+      const filtered = filterFigmaNode(result);
+      
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(filterFigmaNode(result))
+            text: JSON.stringify(filtered)
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_node_info is deprecated. Please use get_nodes({nodeIds: '" + nodeId + "'}) instead."
           }
         ]
       };
@@ -227,9 +237,9 @@ server.tool(
         {
           nodeId,
           suggestions: [
-            'Verify the node ID is correct',
-            'Check if the node exists in the current document',
-            'Ensure you have access to view this node'
+            'Use get_nodes instead of get_node_info',
+            'Example: get_nodes({nodeIds: "' + nodeId + '"})',
+            'The new tool supports both single and multiple nodes'
           ]
         }
       );
@@ -341,14 +351,108 @@ function filterFigmaNode(node: any) {
   return filtered;
 }
 
-// Nodes Info Tool
+// Unified Get Nodes Tool
+server.tool(
+  "get_nodes",
+  "Get detailed information about one or more nodes in Figma. Accepts either a single node ID or array of IDs.",
+  {
+    nodeIds: z.union([
+      z.string().describe("Single node ID to get information about"),
+      z.array(z.string()).describe("Array of node IDs to get information about")
+    ]).describe("Node ID(s) to retrieve"),
+    includeChildren: z.boolean().optional().describe("Whether to include child nodes (default: true)"),
+    maxDepth: z.number().optional().describe("Maximum depth for child traversal (-1 for unlimited, default: -1)")
+  },
+  async ({ nodeIds, includeChildren = true, maxDepth = -1 }) => {
+    try {
+      // Normalize input to always work with arrays
+      const isSingleNode = typeof nodeIds === 'string';
+      const nodeIdArray = isSingleNode ? [nodeIds] : nodeIds;
+      
+      if (nodeIdArray.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: "No node IDs provided"
+          }]
+        };
+      }
+
+      // Use different backend commands based on input
+      if (nodeIdArray.length === 1) {
+        // Single node - use get_node_info
+        const result = await sendCommandToFigma("get_node_info", { 
+          nodeId: nodeIdArray[0],
+          includeChildren,
+          maxDepth
+        });
+        
+        const filtered = filterFigmaNode(result);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(isSingleNode ? filtered : [filtered])
+          }]
+        };
+      } else {
+        // Multiple nodes - use get_multiple_nodes_info for efficiency
+        const result = await sendCommandToFigma("get_multiple_nodes_info", {
+          nodeIds: nodeIdArray,
+          includeChildren,
+          maxDepth
+        }) as any;
+        
+        // Process results to match expected format
+        const processedResults = result.results.map((nodeResult: any) => {
+          if (nodeResult.found) {
+            return filterFigmaNode(nodeResult.node);
+          }
+          return null;
+        }).filter((node: any) => node !== null);
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(processedResults)
+          }]
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check for specific error types
+      if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+        const nodeId = typeof nodeIds === 'string' ? nodeIds : nodeIds[0];
+        return formatErrorForMCP(CommonErrors.nodeNotFound(nodeId));
+      }
+      
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get node(s) info: ${errorMessage}`,
+        {
+          suggestions: [
+            'Verify all node IDs are valid',
+            'Check if nodes exist in the current document',
+            'Ensure you have access to view these nodes'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Nodes Info Tool (DEPRECATED - Use get_nodes instead)
 server.tool(
   "get_nodes_info",
-  "Get detailed information about multiple nodes in Figma",
+  "[DEPRECATED] Get detailed information about multiple nodes in Figma. Use 'get_nodes' instead.",
   {
     nodeIds: z.array(z.string()).describe("Array of node IDs to get information about")
   },
   async ({ nodeIds }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_nodes_info is deprecated. Use get_nodes instead.');
+    
     try {
       const results = await Promise.all(
         nodeIds.map(async (nodeId) => {
@@ -361,6 +465,10 @@ server.tool(
           {
             type: "text",
             text: JSON.stringify(results.map((result) => filterFigmaNode(result.info)))
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_nodes_info is deprecated. Please use get_nodes({nodeIds: [" + nodeIds.map(id => '"' + id + '"').join(', ') + "]}) instead."
           }
         ]
       };
@@ -370,9 +478,9 @@ server.tool(
         `Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`,
         {
           suggestions: [
-            'Verify all node IDs are valid',
-            'Check if nodes exist in the current document',
-            'Some nodes may have been deleted or moved'
+            'Use get_nodes instead of get_nodes_info',
+            'Example: get_nodes({nodeIds: ["id1", "id2"]})',
+            'The new tool supports both single and multiple nodes'
           ]
         }
       );
@@ -4404,11 +4512,14 @@ server.tool(
 
 server.tool(
   "get_multiple_nodes_info",
-  "Get information for multiple nodes in a single request. More efficient than multiple individual get_node_info calls.",
+  "[DEPRECATED] Get information for multiple nodes in a single request. Use 'get_nodes' instead.",
   {
     nodeIds: z.array(z.string()).describe("Array of node IDs to get information for"),
   },
   async ({ nodeIds }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_multiple_nodes_info is deprecated. Use get_nodes instead.');
+    
     try {
       const result = await sendCommandToFigma("get_multiple_nodes_info", {
         nodeIds,
@@ -4419,10 +4530,25 @@ server.tool(
             type: "text",
             text: `Retrieved info for ${result.totalFound} nodes. ${result.totalNotFound} not found.\n${JSON.stringify(result.results, null, 2)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_multiple_nodes_info is deprecated. Please use get_nodes({nodeIds: [" + nodeIds.map(id => '"' + id + '"').join(', ') + "]}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_nodes instead of get_multiple_nodes_info',
+            'Example: get_nodes({nodeIds: ["id1", "id2"]})',
+            'The new tool is more efficient and supports additional options'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );

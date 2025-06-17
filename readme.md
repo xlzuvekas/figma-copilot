@@ -156,8 +156,9 @@ The MCP server provides the following tools for interacting with Figma:
 - `get_document_info` - Get information about the current Figma document
 - `get_selection` - Get information about the current selection
 - `read_my_design` - Get detailed node information about the current selection without parameters
-- `get_node_info` - Get detailed information about a specific node
-- `get_nodes_info` - Get detailed information about multiple nodes by providing an array of node IDs
+- `get_nodes` - Get detailed information about one or more nodes (accepts single ID or array)
+- ~~`get_node_info`~~ - **DEPRECATED**: Use `get_nodes` with single node ID instead
+- ~~`get_nodes_info`~~ - **DEPRECATED**: Use `get_nodes` with array of node IDs instead
 
 ### Annotations
 
@@ -232,7 +233,7 @@ See [Text Styling Guide](docs/TEXT_STYLING.md) for detailed usage.
 See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 
 - `clone_multiple_nodes` - Clone a node to multiple positions in one operation (50-90% faster than individual clones)
-- `get_multiple_nodes_info` - Get information for multiple nodes in a single request
+- ~~`get_multiple_nodes_info`~~ - **DEPRECATED**: Use `get_nodes` with array of node IDs instead
 - `set_multiple_nodes_property` - Set the same property value on multiple nodes at once
 - `execute_batch` - Execute multiple different commands in sequence with a single round-trip
 - `get_connection_status` - Get current connection status and statistics
