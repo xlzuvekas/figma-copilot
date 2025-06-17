@@ -180,15 +180,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting node info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to read design: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Select one or more nodes in Figma first',
+            'Ensure you are connected to a Figma document',
+            'Check if the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -362,15 +365,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting nodes info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify all node IDs are valid',
+            'Check if nodes exist in the current document',
+            'Some nodes may have been deleted or moved'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -410,15 +416,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating rectangle: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create rectangle: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
