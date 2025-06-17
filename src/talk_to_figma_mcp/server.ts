@@ -5,6 +5,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
+import { 
+  ErrorCodes, 
+  CommonErrors, 
+  createErrorResponse, 
+  formatErrorForMCP 
+} from "./errors.js";
 
 // Define TypeScript interfaces for Figma responses
 interface FigmaResponse {
@@ -108,25 +114,31 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting document info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get document info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are connected to Figma',
+            'Check if a document is open in Figma',
+            'Verify the WebSocket connection is active'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
 
-// Selection Tool
+// Selection Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_selection",
-  "Get information about the current selection in Figma",
+  "[DEPRECATED] Get information about the current selection in Figma. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_selection is deprecated. Use get_current_context instead.');
+    
     try {
       const result = await sendCommandToFigma("get_selection");
       return {
@@ -134,19 +146,117 @@ server.tool(
           {
             type: "text",
             text: JSON.stringify(result)
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_selection is deprecated. Please use get_current_context() instead for more comprehensive context information."
           }
         ]
       };
     } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get selection: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_current_context instead of get_selection',
+            'The new tool provides selection plus additional context',
+            'Example: get_current_context()'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Unified Current Context Tool
+server.tool(
+  "get_current_context",
+  "Get comprehensive context about the current state including selection, focused slide (if in Slides mode), and optionally document info",
+  {
+    includeDocument: z.boolean().optional().describe("Include document information (default: false)"),
+    includeSlideDetails: z.boolean().optional().describe("Include detailed slide information if in Slides mode (default: true)"),
+    includeSelectionDetails: z.boolean().optional().describe("Include detailed selection information (default: false)")
+  },
+  async ({ includeDocument = false, includeSlideDetails = true, includeSelectionDetails = false }) => {
+    try {
+      const context: any = {};
+      
+      // Always get selection
+      try {
+        const selection = await sendCommandToFigma("get_selection");
+        context.selection = selection;
+      } catch (error) {
+        context.selection = { error: "Failed to get selection", selectionCount: 0 };
+      }
+      
+      // Get connection status to determine editor type
+      try {
+        const status = await sendCommandToFigma("get_connection_status", {}) as any;
+        context.editorType = status.editorType || "figma";
+        
+        // If in Slides mode, get slide-specific info
+        if (status.editorType === "slides" && includeSlideDetails) {
+          // Get focused slide
+          try {
+            const focusedSlide = await sendCommandToFigma("get_focused_slide", {});
+            context.focusedSlide = focusedSlide;
+          } catch (error) {
+            context.focusedSlide = null;
+          }
+          
+          // Get slides mode
+          try {
+            const slidesMode = await sendCommandToFigma("get_slides_mode", {});
+            context.slidesMode = slidesMode;
+          } catch (error) {
+            context.slidesMode = null;
+          }
+        }
+      } catch (error) {
+        context.editorType = "unknown";
+      }
+      
+      // Optionally get document info
+      if (includeDocument) {
+        try {
+          const docInfo = await sendCommandToFigma("get_document_info");
+          context.document = docInfo;
+        } catch (error) {
+          context.document = { error: "Failed to get document info" };
+        }
+      }
+      
+      // Optionally get detailed selection info
+      if (includeSelectionDetails && context.selection && context.selection.selectionCount > 0) {
+        try {
+          const detailedSelection = await sendCommandToFigma("read_my_design", {});
+          context.selectionDetails = detailedSelection;
+        } catch (error) {
+          context.selectionDetails = null;
+        }
+      }
+      
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting selection: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
+        content: [{
+          type: "text",
+          text: JSON.stringify(context, null, 2)
+        }]
       };
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get current context: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are connected to Figma',
+            'Check if the Figma plugin is running',
+            'Try with different option parameters'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -168,47 +278,70 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting node info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to read design: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Select one or more nodes in Figma first',
+            'Ensure you are connected to a Figma document',
+            'Check if the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
 
-// Node Info Tool
+// Node Info Tool (DEPRECATED - Use get_nodes instead)
 server.tool(
   "get_node_info",
-  "Get detailed information about a specific node in Figma",
+  "[DEPRECATED] Get detailed information about a specific node in Figma. Use 'get_nodes' instead.",
   {
     nodeId: z.string().describe("The ID of the node to get information about"),
   },
   async ({ nodeId }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_node_info is deprecated. Use get_nodes instead.');
+    
     try {
+      // Call the unified get_nodes tool
       const result = await sendCommandToFigma("get_node_info", { nodeId });
+      const filtered = filterFigmaNode(result);
+      
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(filterFigmaNode(result))
+            text: JSON.stringify(filtered)
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_node_info is deprecated. Please use get_nodes({nodeIds: '" + nodeId + "'}) instead."
           }
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting node info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      // Check if it's a node not found error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+        return formatErrorForMCP(CommonErrors.nodeNotFound(nodeId));
+      }
+      
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get node info: ${errorMessage}`,
+        {
+          nodeId,
+          suggestions: [
+            'Use get_nodes instead of get_node_info',
+            'Example: get_nodes({nodeIds: "' + nodeId + '"})',
+            'The new tool supports both single and multiple nodes'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -316,14 +449,108 @@ function filterFigmaNode(node: any) {
   return filtered;
 }
 
-// Nodes Info Tool
+// Unified Get Nodes Tool
+server.tool(
+  "get_nodes",
+  "Get detailed information about one or more nodes in Figma. Accepts either a single node ID or array of IDs.",
+  {
+    nodeIds: z.union([
+      z.string().describe("Single node ID to get information about"),
+      z.array(z.string()).describe("Array of node IDs to get information about")
+    ]).describe("Node ID(s) to retrieve"),
+    includeChildren: z.boolean().optional().describe("Whether to include child nodes (default: true)"),
+    maxDepth: z.number().optional().describe("Maximum depth for child traversal (-1 for unlimited, default: -1)")
+  },
+  async ({ nodeIds, includeChildren = true, maxDepth = -1 }) => {
+    try {
+      // Normalize input to always work with arrays
+      const isSingleNode = typeof nodeIds === 'string';
+      const nodeIdArray = isSingleNode ? [nodeIds] : nodeIds;
+      
+      if (nodeIdArray.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: "No node IDs provided"
+          }]
+        };
+      }
+
+      // Use different backend commands based on input
+      if (nodeIdArray.length === 1) {
+        // Single node - use get_node_info
+        const result = await sendCommandToFigma("get_node_info", { 
+          nodeId: nodeIdArray[0],
+          includeChildren,
+          maxDepth
+        });
+        
+        const filtered = filterFigmaNode(result);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(isSingleNode ? filtered : [filtered])
+          }]
+        };
+      } else {
+        // Multiple nodes - use get_multiple_nodes_info for efficiency
+        const result = await sendCommandToFigma("get_multiple_nodes_info", {
+          nodeIds: nodeIdArray,
+          includeChildren,
+          maxDepth
+        }) as any;
+        
+        // Process results to match expected format
+        const processedResults = result.results.map((nodeResult: any) => {
+          if (nodeResult.found) {
+            return filterFigmaNode(nodeResult.node);
+          }
+          return null;
+        }).filter((node: any) => node !== null);
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(processedResults)
+          }]
+        };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check for specific error types
+      if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+        const nodeId = typeof nodeIds === 'string' ? nodeIds : nodeIds[0];
+        return formatErrorForMCP(CommonErrors.nodeNotFound(nodeId));
+      }
+      
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get node(s) info: ${errorMessage}`,
+        {
+          suggestions: [
+            'Verify all node IDs are valid',
+            'Check if nodes exist in the current document',
+            'Ensure you have access to view these nodes'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Nodes Info Tool (DEPRECATED - Use get_nodes instead)
 server.tool(
   "get_nodes_info",
-  "Get detailed information about multiple nodes in Figma",
+  "[DEPRECATED] Get detailed information about multiple nodes in Figma. Use 'get_nodes' instead.",
   {
     nodeIds: z.array(z.string()).describe("Array of node IDs to get information about")
   },
   async ({ nodeIds }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_nodes_info is deprecated. Use get_nodes instead.');
+    
     try {
       const results = await Promise.all(
         nodeIds.map(async (nodeId) => {
@@ -336,19 +563,26 @@ server.tool(
           {
             type: "text",
             text: JSON.stringify(results.map((result) => filterFigmaNode(result.info)))
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_nodes_info is deprecated. Please use get_nodes({nodeIds: [" + nodeIds.map(id => '"' + id + '"').join(', ') + "]}) instead."
           }
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting nodes info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_nodes instead of get_nodes_info',
+            'Example: get_nodes({nodeIds: ["id1", "id2"]})',
+            'The new tool supports both single and multiple nodes'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -388,15 +622,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating rectangle: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create rectangle: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -517,15 +754,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating frame: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create frame: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -588,15 +828,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating text: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create text: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document',
+            'Use update_text_preserve_formatting to maintain text styles'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -629,15 +873,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting fill color: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set fill color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -672,15 +920,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting stroke color: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set stroke color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -707,15 +959,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error moving node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to move node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure x and y coordinates are valid numbers',
+            'Check if the node is locked or constrained'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -742,14 +998,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error cloning node: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to clone node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the source node ID is valid',
+            'Ensure you have permission to duplicate the node',
+            'Check if the node type supports cloning'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -780,15 +1041,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error resizing node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to resize node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure width and height are positive numbers',
+            'Check if the node has size constraints'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -812,15 +1077,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error deleting node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to delete node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure you have permission to delete the node',
+            'Check if the node is locked or protected'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -844,15 +1113,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error deleting multiple nodes: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.BATCH_PARTIAL_FAILURE,
+        `Failed to delete multiple nodes: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify all node IDs in the batch are valid',
+            'Check if some operations may have partially succeeded',
+            'Ensure you have permissions for all items'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -888,15 +1160,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error exporting node as image: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to export node as image: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check if the node is visible and not empty',
+            'Ensure the export format is supported (PNG, JPG, SVG, PDF)'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -925,15 +1201,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting text content: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set text content: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -955,15 +1235,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting styles: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get styles: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -985,15 +1268,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting local components: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to get local components: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1021,14 +1307,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting annotations: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1064,14 +1355,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting annotation: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set annotation: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1187,15 +1483,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting multiple annotations: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1226,15 +1526,18 @@ server.tool(
         ]
       }
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating component instance: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to create component instance: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1264,14 +1567,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error copying instance overrides: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to copy instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure the node is a component instance',
+            'Check if the instance has any overrides'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1313,14 +1621,18 @@ server.tool(
         };
       }
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting instance overrides: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1358,15 +1670,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting corner radius: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set corner radius: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1483,80 +1799,32 @@ server.prompt(
   }
 );
 
-// Text Node Scanning Tool
+/**
+ * @deprecated This tool has been deprecated due to performance issues (consistent timeouts).
+ * Use scan_nodes_with_options instead for better performance and flexibility.
+ */
+// Text Node Scanning Tool - DEPRECATED
 server.tool(
   "scan_text_nodes",
-  "Scan all text nodes in the selected Figma node",
+  "[DEPRECATED] Scan all text nodes in the selected Figma node - Use scan_nodes_with_options instead",
   {
     nodeId: z.string().describe("ID of the node to scan"),
   },
   async ({ nodeId }) => {
-    try {
-      // Initial response to indicate we're starting the process
-      const initialStatus = {
-        type: "text" as const,
-        text: "Starting text node scanning. This may take a moment for large designs...",
-      };
-
-      // Use the plugin's scan_text_nodes function with chunking flag
-      const result = await sendCommandToFigma("scan_text_nodes", {
+    // Return deprecation error using standardized format
+    const errorResponse = createErrorResponse(
+      ErrorCodes.TOOL_DEPRECATED,
+      "The scan_text_nodes tool has been deprecated due to performance issues.",
+      {
         nodeId,
-        useChunking: true,  // Enable chunking on the plugin side
-        chunkSize: 10       // Process 10 nodes at a time
-      });
-
-      // If the result indicates chunking was used, format the response accordingly
-      if (result && typeof result === 'object' && 'chunks' in result) {
-        const typedResult = result as {
-          success: boolean,
-          totalNodes: number,
-          processedNodes: number,
-          chunks: number,
-          textNodes: Array<any>
-        };
-
-        const summaryText = `
-        Scan completed:
-        - Found ${typedResult.totalNodes} text nodes
-        - Processed in ${typedResult.chunks} chunks
-        `;
-
-        return {
-          content: [
-            initialStatus,
-            {
-              type: "text" as const,
-              text: summaryText
-            },
-            {
-              type: "text" as const,
-              text: JSON.stringify(typedResult.textNodes, null, 2)
-            }
-          ],
-        };
+        suggestions: [
+          "Use scan_nodes_with_options instead with nodeTypes: ['TEXT'] for better performance",
+          `Example: scan_nodes_with_options({ nodeId: '${nodeId}', options: { nodeTypes: ['TEXT'] } })`
+        ]
       }
-
-      // If chunking wasn't used or wasn't reported in the result format, return the result as is
-      return {
-        content: [
-          initialStatus,
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error scanning text nodes: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
-    }
+    );
+    
+    return formatErrorForMCP(errorResponse);
   }
 );
 
@@ -1629,15 +1897,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error scanning nodes by types: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to scan nodes by types: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the parent node ID is valid',
+            'Check if the scan criteria are properly specified',
+            'Consider using pagination for large node trees'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1664,7 +1936,7 @@ server.prompt(
   * Forms (labels, input fields, validation text)
   * Navigation (menu items, breadcrumbs)
 \`\`\`
-scan_text_nodes(nodeId: "node-id")
+scan_nodes_with_options({ nodeId: "node-id", options: { nodeTypes: ["TEXT"] } })
 get_node_info(nodeId: "node-id")  // optional
 \`\`\`
 
@@ -1872,15 +2144,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting multiple text contents: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple text contents: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2124,14 +2400,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting layout mode: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout mode: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2178,14 +2459,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting padding: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set padding: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2232,14 +2518,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting axis alignment: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set axis alignment: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2286,14 +2577,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting layout sizing: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout sizing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2323,14 +2619,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting item spacing: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set item spacing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2362,15 +2663,19 @@ server.tool(
         },
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting reactions: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get reactions: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: nodeIds[0],
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2397,14 +2702,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting default connector: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set default connector: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2446,14 +2755,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating connections: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create connections: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -3306,14 +3619,23 @@ function sendCommandToFigma(
     // If not connected, try to connect first
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       connectToFigma();
-      reject(new Error("Not connected to Figma. Attempting to connect..."));
+      reject(CommonErrors.connectionFailed("WebSocket is not connected"));
       return;
     }
 
     // Check if we need a channel for this command
     const requiresChannel = command !== "join";
     if (requiresChannel && !currentChannel) {
-      reject(new Error("Must join a channel before sending commands"));
+      reject(createErrorResponse(
+        ErrorCodes.CHANNEL_NOT_JOINED,
+        "Must join a channel before sending commands",
+        {
+          suggestions: [
+            'Use the join_channel tool to connect to a channel first',
+            'Ensure the Figma plugin is running and showing the channel name'
+          ]
+        }
+      ));
       return;
     }
 
@@ -3339,7 +3661,7 @@ function sendCommandToFigma(
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id);
         logger.error(`Request ${id} to Figma timed out after ${timeoutMs / 1000} seconds`);
-        reject(new Error('Request to Figma timed out'));
+        reject(CommonErrors.operationTimeout(command));
       }
     }, timeoutMs);
 
@@ -3485,12 +3807,15 @@ server.tool(
   }
 );
 
-// Get Focused Slide Tool (Figma Slides only)
+// Get Focused Slide Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_focused_slide",
-  "Get the currently focused slide in Figma Slides",
+  "[DEPRECATED] Get the currently focused slide in Figma Slides. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_focused_slide is deprecated. Use get_current_context instead.');
+    
     try {
       const response = await sendCommandToFigma("get_focused_slide", {});
 
@@ -3500,10 +3825,25 @@ server.tool(
             type: "text",
             text: `Focused slide: ${JSON.stringify(response)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_focused_slide is deprecated. Please use get_current_context({includeSlideDetails: true}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_current_context instead of get_focused_slide',
+            'The new tool provides focused slide plus selection and mode',
+            'Example: get_current_context({includeSlideDetails: true})'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -3584,12 +3924,15 @@ server.tool(
   }
 );
 
-// Get Slides Mode Tool (Figma Slides only)
+// Get Slides Mode Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_slides_mode",
-  "Get the current viewport mode in Figma Slides (grid or single-slide)",
+  "[DEPRECATED] Get the current viewport mode in Figma Slides. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_slides_mode is deprecated. Use get_current_context instead.');
+    
     try {
       const response = await sendCommandToFigma("get_slides_mode", {});
 
@@ -3599,10 +3942,25 @@ server.tool(
             type: "text",
             text: `Current slides mode: ${JSON.stringify(response)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_slides_mode is deprecated. Please use get_current_context({includeSlideDetails: true}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get slides mode: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get slides mode: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_current_context instead of get_slides_mode',
+            'The new tool provides slides mode plus selection and focused slide',
+            'Example: get_current_context({includeSlideDetails: true})'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -3652,7 +4010,526 @@ server.tool(
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get slide grid: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get slide grid: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are in Figma Slides mode',
+            'Check if the document has slides',
+            'Verify the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Extract Slide Content Composite Tool
+server.tool(
+  "extract_slide_content",
+  "Extract all content from a Figma slide including text, tables, and optionally images",
+  {
+    slideId: z.string().describe("ID of the slide to extract content from"),
+    includeImages: z.boolean().optional().describe("Include image data in extraction (default: false)"),
+    outputFormat: z.enum(["raw", "structured"]).optional().describe("Output format: raw text or structured JSON (default: structured)"),
+    textOnly: z.boolean().optional().describe("Extract only text content, skip tables and images (default: false)")
+  },
+  async ({ slideId, includeImages = false, outputFormat = "structured", textOnly = false }) => {
+    try {
+      const content: any = {
+        slideId,
+        text: [],
+        tables: [],
+        images: [],
+        metadata: {}
+      };
+      
+      // First, get slide info to validate it exists
+      try {
+        const slideInfo = await sendCommandToFigma("get_node_info", { nodeId: slideId }) as any;
+        if (!slideInfo || slideInfo.type !== "SLIDE") {
+          throw new Error("Node is not a slide");
+        }
+        content.metadata = {
+          name: slideInfo.name || "",
+          width: slideInfo.width || 0,
+          height: slideInfo.height || 0
+        };
+      } catch (error) {
+        return formatErrorForMCP(CommonErrors.nodeNotFound(slideId));
+      }
+      
+      // Scan for all content nodes in the slide
+      const scanOptions = {
+        maxDepth: -1,
+        nodeTypes: textOnly ? ["TEXT"] : ["TEXT", "TABLE", "RECTANGLE", "FRAME"],
+        timeout: 10000,
+        returnPartialOnTimeout: true
+      };
+      
+      const scanResult = await sendCommandToFigma("scan_nodes_with_options", {
+        nodeId: slideId,
+        options: scanOptions
+      }) as any;
+      
+      if (scanResult.nodes && scanResult.nodes.length > 0) {
+        // Process each node type
+        for (const node of scanResult.nodes) {
+          if (node.type === "TEXT" && node.characters) {
+            content.text.push({
+              id: node.id,
+              text: node.characters,
+              name: node.name
+            });
+          } else if (node.type === "TABLE" && !textOnly) {
+            // Get detailed table data
+            try {
+              const tableData = await sendCommandToFigma("get_node_info", { nodeId: node.id });
+              const tableContent = extractTableData(tableData);
+              if (tableContent) {
+                content.tables.push({
+                  id: node.id,
+                  name: node.name,
+                  data: tableContent
+                });
+              }
+            } catch (error) {
+              // Continue with partial results
+            }
+          } else if ((node.type === "RECTANGLE" || node.type === "FRAME") && includeImages && !textOnly) {
+            // Check if it might be an image
+            if (node.name && (node.name.toLowerCase().includes("image") || node.name.toLowerCase().includes("img"))) {
+              content.images.push({
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                bounds: node.absoluteBoundingBox
+              });
+            }
+          }
+        }
+      }
+      
+      // Format output based on preference
+      if (outputFormat === "raw") {
+        // Combine all text content into a single string
+        const rawText = content.text.map((t: any) => t.text).join("\n\n");
+        const tableText = content.tables.map((t: any) => 
+          `Table: ${t.name}\n${formatTableAsText(t.data)}`
+        ).join("\n\n");
+        
+        return {
+          content: [{
+            type: "text",
+            text: [rawText, tableText].filter(Boolean).join("\n\n")
+          }]
+        };
+      } else {
+        // Return structured data
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(content, null, 2)
+          }]
+        };
+      }
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to extract slide content: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: slideId,
+          suggestions: [
+            'Verify the slide ID is correct',
+            'Ensure you are in Figma Slides mode',
+            'Check if you have access to the slide'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Helper function to extract table data
+function extractTableData(tableNode: any): any[][] | null {
+  if (!tableNode || !tableNode.children) return null;
+  
+  const rows: any[][] = [];
+  const cells = tableNode.children.filter((child: any) => child.type === "TABLE_CELL");
+  
+  if (cells.length === 0) return null;
+  
+  // Group cells by row (assuming they're ordered)
+  cells.forEach((cell: any) => {
+    if (cell.characters !== undefined) {
+      // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+      const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+      if (match) {
+        const row = parseInt(match[1]);
+        const col = parseInt(match[2]);
+        
+        if (!rows[row]) rows[row] = [];
+        rows[row][col] = cell.characters;
+      }
+    }
+  });
+  
+  return rows.filter(row => row && row.length > 0);
+}
+
+// Helper function to format table as text
+function formatTableAsText(data: any[][]): string {
+  if (!data || data.length === 0) return "";
+  
+  return data.map(row => 
+    row.map(cell => cell || "").join(" | ")
+  ).join("\n");
+}
+
+// Get Presentation Summary Composite Tool
+server.tool(
+  "get_presentation_summary",
+  "Generate an overview of a Figma presentation including slide count, slide titles, and optionally an outline summarizing key points",
+  {
+    includeOutline: z.boolean().optional().describe("Include an outline with key points from each slide (default: true)"),
+    maxTextPreview: z.number().optional().describe("Maximum characters of text to include per slide in outline (default: 200)"),
+    includeEmptySlides: z.boolean().optional().describe("Include slides with no content in the summary (default: false)")
+  },
+  async ({ includeOutline = true, maxTextPreview = 200, includeEmptySlides = false }) => {
+    try {
+      // First check if we're in slides mode
+      const slidesInfo = await sendCommandToFigma("get_slides_mode", {}) as any;
+      
+      if (!slidesInfo.inSlidesMode) {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "Not in Figma Slides mode. This tool requires an active presentation.",
+          {
+            suggestions: [
+              'Switch to Figma Slides mode first',
+              'Open a presentation in Figma',
+              'Use get_document_info for regular Figma documents'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      // Get all slides
+      const documentInfo = await sendCommandToFigma("get_document_info", {}) as any;
+      const slidesNode = documentInfo.children?.find((child: any) => child.type === "SLIDES");
+      
+      if (!slidesNode || !slidesNode.children) {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "No slides found in the presentation",
+          {
+            suggestions: [
+              'Ensure the presentation has at least one slide',
+              'Check if you have access to the presentation',
+              'Try refreshing the document'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      const slides = slidesNode.children.filter((child: any) => child.type === "SLIDE");
+      const summary: any = {
+        presentationName: documentInfo.name || "Untitled Presentation",
+        totalSlides: slides.length,
+        focusedSlideId: slidesInfo.currentSlideId || null,
+        slides: []
+      };
+      
+      // Process each slide
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        const slideInfo: any = {
+          index: i + 1,
+          id: slide.id,
+          title: slide.name || `Slide ${i + 1}`,
+          hasContent: false
+        };
+        
+        if (includeOutline) {
+          try {
+            // Get content from each slide
+            const scanResult = await sendCommandToFigma("scan_nodes_with_options", {
+              nodeId: slide.id,
+              options: {
+                maxDepth: 3,
+                nodeTypes: ["TEXT"],
+                timeout: 2000,
+                returnPartialOnTimeout: true
+              }
+            }) as any;
+            
+            if (scanResult.nodes && scanResult.nodes.length > 0) {
+              slideInfo.hasContent = true;
+              
+              // Extract key points from text nodes
+              const textNodes = scanResult.nodes.filter((node: any) => node.characters);
+              const allText = textNodes.map((node: any) => node.characters).join(" ");
+              
+              if (allText.trim()) {
+                // Create a preview/summary of the slide content
+                slideInfo.keyPoints = [];
+                
+                // Look for bullet points or numbered lists
+                const bulletMatches = allText.match(/[•·\-*]\s*([^\n•·\-*]+)/g);
+                const numberMatches = allText.match(/\d+\.\s*([^\n]+)/g);
+                
+                if (bulletMatches || numberMatches) {
+                  const points = [...(bulletMatches || []), ...(numberMatches || [])]
+                    .map(point => point.replace(/^[•·\-*\d.]\s*/, '').trim())
+                    .filter(point => point.length > 5)
+                    .slice(0, 5);
+                  
+                  if (points.length > 0) {
+                    slideInfo.keyPoints = points;
+                  }
+                }
+                
+                // If no bullet points found, use first few sentences
+                if (slideInfo.keyPoints.length === 0) {
+                  const preview = allText.substring(0, maxTextPreview).trim();
+                  if (preview) {
+                    slideInfo.textPreview = preview + (allText.length > maxTextPreview ? "..." : "");
+                  }
+                }
+                
+                // Count specific content types
+                slideInfo.contentStats = {
+                  textNodes: textNodes.length,
+                  totalCharacters: allText.length
+                };
+              }
+            }
+          } catch (error) {
+            // Continue with partial results
+            slideInfo.scanError = true;
+          }
+        }
+        
+        // Only include slide if it has content or includeEmptySlides is true
+        if (slideInfo.hasContent || includeEmptySlides) {
+          summary.slides.push(slideInfo);
+        }
+      }
+      
+      // Generate executive summary
+      if (includeOutline) {
+        const slidesWithContent = summary.slides.filter((s: any) => s.hasContent);
+        summary.executiveSummary = {
+          slidesWithContent: slidesWithContent.length,
+          emptySlides: slides.length - slidesWithContent.length,
+          averageContentPerSlide: slidesWithContent.length > 0 
+            ? Math.round(slidesWithContent.reduce((sum: number, slide: any) => 
+                sum + (slide.contentStats?.totalCharacters || 0), 0) / slidesWithContent.length)
+            : 0
+        };
+      }
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(summary, null, 2)
+        }]
+      };
+      
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to generate presentation summary: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are in Figma Slides mode',
+            'Check if the presentation is loaded',
+            'Try reducing maxTextPreview if the operation times out'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Get Table Data Tool
+server.tool(
+  "get_table_data",
+  "Extract data from a Figma table node in various formats (array, object, or CSV)",
+  {
+    tableId: z.string().describe("ID of the table node to extract data from"),
+    outputFormat: z.enum(["array", "object", "csv"]).optional().describe("Output format for the table data (default: array)"),
+    includeHeaders: z.boolean().optional().describe("Whether to include the first row as headers (default: true)"),
+    headerRow: z.number().optional().describe("Which row to use as headers (0-based index, default: 0)"),
+    cleanEmptyCells: z.boolean().optional().describe("Remove empty cells from output (default: true)")
+  },
+  async ({ tableId, outputFormat = "array", includeHeaders = true, headerRow = 0, cleanEmptyCells = true }) => {
+    try {
+      // Get the table node info
+      const tableInfo = await sendCommandToFigma("get_node_info", { nodeId: tableId }) as any;
+      
+      if (!tableInfo || tableInfo.type !== "TABLE") {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "Node is not a table",
+          {
+            nodeId: tableId,
+            suggestions: [
+              'Verify the node ID refers to a table',
+              'Use scan_nodes_by_types with nodeTypes: ["TABLE"] to find tables',
+              'Check if the node exists in the current document'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      // Extract cells from the table
+      const cells = tableInfo.children?.filter((child: any) => child.type === "TABLE_CELL") || [];
+      
+      if (cells.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: outputFormat === "csv" ? "" : JSON.stringify([], null, 2)
+          }]
+        };
+      }
+      
+      // Parse cells into a 2D array
+      const rows: any[][] = [];
+      let maxRow = 0;
+      let maxCol = 0;
+      
+      cells.forEach((cell: any) => {
+        // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+        const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+        if (match) {
+          const row = parseInt(match[1]);
+          const col = parseInt(match[2]);
+          maxRow = Math.max(maxRow, row);
+          maxCol = Math.max(maxCol, col);
+          
+          if (!rows[row]) rows[row] = [];
+          rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+        }
+      });
+      
+      // Fill any missing cells with empty strings
+      for (let r = 0; r <= maxRow; r++) {
+        if (!rows[r]) rows[r] = [];
+        for (let c = 0; c <= maxCol; c++) {
+          if (rows[r][c] === undefined) rows[r][c] = "";
+        }
+      }
+      
+      // Clean empty rows if requested
+      let finalRows = rows.filter(row => row && row.some(cell => cell !== ""));
+      
+      // Process based on output format
+      let result: any;
+      let headers: string[] = [];
+      
+      if (includeHeaders && finalRows.length > headerRow) {
+        headers = finalRows[headerRow].map((h: any) => String(h).trim() || `Column${finalRows[headerRow].indexOf(h) + 1}`);
+      }
+      
+      switch (outputFormat) {
+        case "object":
+          if (includeHeaders && headers.length > 0) {
+            // Convert to array of objects using headers as keys
+            const dataRows = finalRows.slice(headerRow + 1);
+            result = dataRows.map(row => {
+              const obj: any = {};
+              headers.forEach((header, index) => {
+                const value = row[index] || "";
+                if (!cleanEmptyCells || value !== "") {
+                  obj[header] = value;
+                }
+              });
+              return obj;
+            });
+          } else {
+            // Convert to array of objects with generic keys
+            result = finalRows.map(row => {
+              const obj: any = {};
+              row.forEach((cell, index) => {
+                if (!cleanEmptyCells || cell !== "") {
+                  obj[`col${index + 1}`] = cell;
+                }
+              });
+              return obj;
+            });
+          }
+          break;
+          
+        case "csv":
+          // Convert to CSV format
+          const csvRows = finalRows.map(row => 
+            row.map(cell => {
+              // Escape quotes and wrap in quotes if contains comma, newline, or quotes
+              const cellStr = String(cell);
+              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                return '"' + cellStr.replace(/"/g, '""') + '"';
+              }
+              return cellStr;
+            }).join(',')
+          );
+          result = csvRows.join('\n');
+          break;
+          
+        case "array":
+        default:
+          // Return as 2D array
+          result = cleanEmptyCells 
+            ? finalRows.map(row => row.filter(cell => cell !== ""))
+            : finalRows;
+          break;
+      }
+      
+      // Add metadata about the table
+      const metadata = {
+        tableId,
+        tableName: tableInfo.name || "Untitled Table",
+        rows: finalRows.length,
+        columns: maxCol + 1,
+        totalCells: cells.length,
+        format: outputFormat
+      };
+      
+      return {
+        content: [{
+          type: "text",
+          text: outputFormat === "csv" 
+            ? result 
+            : JSON.stringify({
+                metadata,
+                headers: includeHeaders ? headers : undefined,
+                data: result
+              }, null, 2)
+        }]
+      };
+      
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to extract table data: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: tableId,
+          suggestions: [
+            'Verify the table ID is correct',
+            'Ensure the node is a TABLE type',
+            'Check if you have access to the table'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -4288,11 +5165,14 @@ server.tool(
 
 server.tool(
   "get_multiple_nodes_info",
-  "Get information for multiple nodes in a single request. More efficient than multiple individual get_node_info calls.",
+  "[DEPRECATED] Get information for multiple nodes in a single request. Use 'get_nodes' instead.",
   {
     nodeIds: z.array(z.string()).describe("Array of node IDs to get information for"),
   },
   async ({ nodeIds }) => {
+    // Redirect to get_nodes with deprecation notice
+    console.warn('[DEPRECATION] get_multiple_nodes_info is deprecated. Use get_nodes instead.');
+    
     try {
       const result = await sendCommandToFigma("get_multiple_nodes_info", {
         nodeIds,
@@ -4303,10 +5183,25 @@ server.tool(
             type: "text",
             text: `Retrieved info for ${result.totalFound} nodes. ${result.totalNotFound} not found.\n${JSON.stringify(result.results, null, 2)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_multiple_nodes_info is deprecated. Please use get_nodes({nodeIds: [" + nodeIds.map(id => '"' + id + '"').join(', ') + "]}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get multiple nodes info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_nodes instead of get_multiple_nodes_info',
+            'Example: get_nodes({nodeIds: ["id1", "id2"]})',
+            'The new tool is more efficient and supports additional options'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -4459,15 +5354,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error joining channel: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to join channel: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure the channel name is valid',
+            'Check if the WebSocket connection is active',
+            'Verify the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );

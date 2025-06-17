@@ -154,10 +154,14 @@ The MCP server provides the following tools for interacting with Figma:
 ### Document & Selection
 
 - `get_document_info` - Get information about the current Figma document
-- `get_selection` - Get information about the current selection
+- `get_current_context` - Get comprehensive context including selection, focused slide (if in Slides mode), and optionally document info
+- ~~`get_selection`~~ - **DEPRECATED**: Use `get_current_context` instead
 - `read_my_design` - Get detailed node information about the current selection without parameters
-- `get_node_info` - Get detailed information about a specific node
-- `get_nodes_info` - Get detailed information about multiple nodes by providing an array of node IDs
+- `get_nodes` - Get detailed information about one or more nodes (accepts single ID or array)
+- ~~`get_node_info`~~ - **DEPRECATED**: Use `get_nodes` with single node ID instead
+- ~~`get_nodes_info`~~ - **DEPRECATED**: Use `get_nodes` with array of node IDs instead
+- ~~`get_focused_slide`~~ - **DEPRECATED**: Use `get_current_context` with includeSlideDetails option
+- ~~`get_slides_mode`~~ - **DEPRECATED**: Use `get_current_context` with includeSlideDetails option
 
 ### Annotations
 
@@ -181,7 +185,7 @@ The MCP server provides the following tools for interacting with Figma:
 ### Text Operations
 
 #### Basic Text Operations
-- `scan_text_nodes` - Scan text nodes with intelligent chunking for large designs
+- ~~`scan_text_nodes`~~ - **DEPRECATED**: Use `scan_nodes_with_options` with `nodeTypes: ['TEXT']` instead
 - `scan_nodes_with_options` - Enhanced scanning with depth control, timeout handling, and partial results
 - `set_text_content` - Set the text content of a single text node (Note: loses formatting)
 - `set_multiple_text_contents` - Batch update multiple text nodes efficiently (Note: loses formatting)
@@ -232,7 +236,7 @@ See [Text Styling Guide](docs/TEXT_STYLING.md) for detailed usage.
 See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 
 - `clone_multiple_nodes` - Clone a node to multiple positions in one operation (50-90% faster than individual clones)
-- `get_multiple_nodes_info` - Get information for multiple nodes in a single request
+- ~~`get_multiple_nodes_info`~~ - **DEPRECATED**: Use `get_nodes` with array of node IDs instead
 - `set_multiple_nodes_property` - Set the same property value on multiple nodes at once
 - `execute_batch` - Execute multiple different commands in sequence with a single round-trip
 - `get_connection_status` - Get current connection status and statistics
@@ -244,6 +248,12 @@ See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 - `create_component_instance` - Create an instance of a component
 - `get_instance_overrides` - Extract override properties from a selected component instance
 - `set_instance_overrides` - Apply extracted overrides to target instances
+
+### Composite Tools
+
+- `extract_slide_content` - Extract all content from a Figma slide including text, tables, and optionally images (supports raw or structured output)
+- `get_presentation_summary` - Generate an overview of a Figma presentation including slide count, slide titles, and optionally an outline summarizing key points
+- `get_table_data` - Extract data from a Figma table node in various formats (array, object, or CSV) with customizable header handling
 
 ### Export & Advanced
 
@@ -285,7 +295,7 @@ When working with the Figma MCP:
 
 1. Always join a channel before sending commands
 2. Get document overview using `get_document_info` first
-3. Check current selection with `get_selection` before modifications
+3. Check current context with `get_current_context` before modifications
 4. Use appropriate creation tools based on needs:
    - `create_frame` for containers
    - `create_rectangle` for basic shapes
@@ -294,7 +304,7 @@ When working with the Figma MCP:
 6. Use component instances when possible for consistency
 7. Handle errors appropriately as all commands can throw exceptions
 8. For large designs:
-   - Use chunking parameters in `scan_text_nodes`
+   - Use `scan_nodes_with_options` with appropriate timeout and depth settings
    - Monitor progress through WebSocket updates
    - Implement appropriate error handling
 9. For text operations:
