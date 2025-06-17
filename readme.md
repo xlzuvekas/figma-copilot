@@ -154,11 +154,14 @@ The MCP server provides the following tools for interacting with Figma:
 ### Document & Selection
 
 - `get_document_info` - Get information about the current Figma document
-- `get_selection` - Get information about the current selection
+- `get_current_context` - Get comprehensive context including selection, focused slide (if in Slides mode), and optionally document info
+- ~~`get_selection`~~ - **DEPRECATED**: Use `get_current_context` instead
 - `read_my_design` - Get detailed node information about the current selection without parameters
 - `get_nodes` - Get detailed information about one or more nodes (accepts single ID or array)
 - ~~`get_node_info`~~ - **DEPRECATED**: Use `get_nodes` with single node ID instead
 - ~~`get_nodes_info`~~ - **DEPRECATED**: Use `get_nodes` with array of node IDs instead
+- ~~`get_focused_slide`~~ - **DEPRECATED**: Use `get_current_context` with includeSlideDetails option
+- ~~`get_slides_mode`~~ - **DEPRECATED**: Use `get_current_context` with includeSlideDetails option
 
 ### Annotations
 
@@ -286,7 +289,7 @@ When working with the Figma MCP:
 
 1. Always join a channel before sending commands
 2. Get document overview using `get_document_info` first
-3. Check current selection with `get_selection` before modifications
+3. Check current context with `get_current_context` before modifications
 4. Use appropriate creation tools based on needs:
    - `create_frame` for containers
    - `create_rectangle` for basic shapes

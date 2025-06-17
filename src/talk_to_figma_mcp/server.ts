@@ -130,12 +130,15 @@ server.tool(
   }
 );
 
-// Selection Tool
+// Selection Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_selection",
-  "Get information about the current selection in Figma",
+  "[DEPRECATED] Get information about the current selection in Figma. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_selection is deprecated. Use get_current_context instead.');
+    
     try {
       const result = await sendCommandToFigma("get_selection");
       return {
@@ -143,6 +146,10 @@ server.tool(
           {
             type: "text",
             text: JSON.stringify(result)
+          },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_selection is deprecated. Please use get_current_context() instead for more comprehensive context information."
           }
         ]
       };
@@ -152,9 +159,100 @@ server.tool(
         `Failed to get selection: ${error instanceof Error ? error.message : String(error)}`,
         {
           suggestions: [
-            'Select one or more objects in Figma',
-            'Ensure you are connected to the correct document',
-            'Check if the Figma plugin is running'
+            'Use get_current_context instead of get_selection',
+            'The new tool provides selection plus additional context',
+            'Example: get_current_context()'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Unified Current Context Tool
+server.tool(
+  "get_current_context",
+  "Get comprehensive context about the current state including selection, focused slide (if in Slides mode), and optionally document info",
+  {
+    includeDocument: z.boolean().optional().describe("Include document information (default: false)"),
+    includeSlideDetails: z.boolean().optional().describe("Include detailed slide information if in Slides mode (default: true)"),
+    includeSelectionDetails: z.boolean().optional().describe("Include detailed selection information (default: false)")
+  },
+  async ({ includeDocument = false, includeSlideDetails = true, includeSelectionDetails = false }) => {
+    try {
+      const context: any = {};
+      
+      // Always get selection
+      try {
+        const selection = await sendCommandToFigma("get_selection");
+        context.selection = selection;
+      } catch (error) {
+        context.selection = { error: "Failed to get selection", selectionCount: 0 };
+      }
+      
+      // Get connection status to determine editor type
+      try {
+        const status = await sendCommandToFigma("get_connection_status", {}) as any;
+        context.editorType = status.editorType || "figma";
+        
+        // If in Slides mode, get slide-specific info
+        if (status.editorType === "slides" && includeSlideDetails) {
+          // Get focused slide
+          try {
+            const focusedSlide = await sendCommandToFigma("get_focused_slide", {});
+            context.focusedSlide = focusedSlide;
+          } catch (error) {
+            context.focusedSlide = null;
+          }
+          
+          // Get slides mode
+          try {
+            const slidesMode = await sendCommandToFigma("get_slides_mode", {});
+            context.slidesMode = slidesMode;
+          } catch (error) {
+            context.slidesMode = null;
+          }
+        }
+      } catch (error) {
+        context.editorType = "unknown";
+      }
+      
+      // Optionally get document info
+      if (includeDocument) {
+        try {
+          const docInfo = await sendCommandToFigma("get_document_info");
+          context.document = docInfo;
+        } catch (error) {
+          context.document = { error: "Failed to get document info" };
+        }
+      }
+      
+      // Optionally get detailed selection info
+      if (includeSelectionDetails && context.selection && context.selection.selectionCount > 0) {
+        try {
+          const detailedSelection = await sendCommandToFigma("read_my_design", {});
+          context.selectionDetails = detailedSelection;
+        } catch (error) {
+          context.selectionDetails = null;
+        }
+      }
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(context, null, 2)
+        }]
+      };
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get current context: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are connected to Figma',
+            'Check if the Figma plugin is running',
+            'Try with different option parameters'
           ]
         }
       );
@@ -3709,12 +3807,15 @@ server.tool(
   }
 );
 
-// Get Focused Slide Tool (Figma Slides only)
+// Get Focused Slide Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_focused_slide",
-  "Get the currently focused slide in Figma Slides",
+  "[DEPRECATED] Get the currently focused slide in Figma Slides. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_focused_slide is deprecated. Use get_current_context instead.');
+    
     try {
       const response = await sendCommandToFigma("get_focused_slide", {});
 
@@ -3724,10 +3825,25 @@ server.tool(
             type: "text",
             text: `Focused slide: ${JSON.stringify(response)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_focused_slide is deprecated. Please use get_current_context({includeSlideDetails: true}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get focused slide: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_current_context instead of get_focused_slide',
+            'The new tool provides focused slide plus selection and mode',
+            'Example: get_current_context({includeSlideDetails: true})'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -3808,12 +3924,15 @@ server.tool(
   }
 );
 
-// Get Slides Mode Tool (Figma Slides only)
+// Get Slides Mode Tool (DEPRECATED - Use get_current_context instead)
 server.tool(
   "get_slides_mode",
-  "Get the current viewport mode in Figma Slides (grid or single-slide)",
+  "[DEPRECATED] Get the current viewport mode in Figma Slides. Use 'get_current_context' instead.",
   {},
   async () => {
+    // Redirect to get_current_context with deprecation notice
+    console.warn('[DEPRECATION] get_slides_mode is deprecated. Use get_current_context instead.');
+    
     try {
       const response = await sendCommandToFigma("get_slides_mode", {});
 
@@ -3823,10 +3942,25 @@ server.tool(
             type: "text",
             text: `Current slides mode: ${JSON.stringify(response)}`,
           },
+          {
+            type: "text",
+            text: "\n⚠️ DEPRECATION WARNING: get_slides_mode is deprecated. Please use get_current_context({includeSlideDetails: true}) instead."
+          }
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get slides mode: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get slides mode: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Use get_current_context instead of get_slides_mode',
+            'The new tool provides slides mode plus selection and focused slide',
+            'Example: get_current_context({includeSlideDetails: true})'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
