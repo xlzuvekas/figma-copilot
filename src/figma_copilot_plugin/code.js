@@ -465,17 +465,80 @@ function filterFigmaNode(node) {
 }
 
 async function getNodeInfo(nodeId) {
-  const node = await figma.getNodeByIdAsync(nodeId);
-
-  if (!node) {
-    throw new Error(`Node not found with ID: ${nodeId}`);
+  // Special handling for SLIDE_GRID nodes
+  // SLIDE_GRID nodes (like "0:3") can't be accessed directly in Figma Slides
+  if (nodeId === "0:3" || nodeId.includes(":3")) {
+    // Attempt to get page-level info for SLIDE_GRID
+    try {
+      const currentPage = figma.currentPage;
+      
+      if (figma.editorType === "slides") {
+        // For Figma Slides, return information about the slide structure
+        const slides = currentPage.findAll(n => n.type === 'SLIDE');
+        const slideRows = currentPage.findAll(n => n.type === 'SLIDE_ROW');
+        
+        return {
+          id: nodeId,
+          name: "Slide Grid",
+          type: "SLIDE_GRID",
+          editorType: figma.editorType,
+          slideCount: slides.length,
+          rowCount: slideRows.length,
+          message: "SLIDE_GRID nodes cannot be accessed directly. Use scan_nodes_by_types or get_slide_grid instead.",
+          alternativeTools: ["scan_nodes_by_types", "get_slide_grid", "get_document_info"],
+          pageInfo: {
+            id: currentPage.id,
+            name: currentPage.name,
+            type: currentPage.type
+          }
+        };
+      }
+    } catch (e) {
+      // If we can't get any info, return a helpful error
+      return {
+        id: nodeId,
+        type: "SLIDE_GRID",
+        error: "SLIDE_GRID node cannot be accessed directly",
+        message: "This is a special node type in Figma Slides. Use scan_nodes_by_types with SLIDE and SLIDE_ROW types instead.",
+        alternativeTools: ["scan_nodes_by_types", "get_slide_grid", "get_document_info"]
+      };
+    }
   }
+  
+  try {
+    const node = await figma.getNodeByIdAsync(nodeId);
 
-  const response = await node.exportAsync({
-    format: "JSON_REST_V1",
-  });
+    if (!node) {
+      // Check if this might be a special node type
+      if (figma.editorType === "slides") {
+        return {
+          id: nodeId,
+          error: `Node not found with ID: ${nodeId}`,
+          message: "This might be a special node type. Try using scan_nodes_by_types or get_document_info instead.",
+          alternativeTools: ["scan_nodes_by_types", "get_document_info", "get_slide_grid"]
+        };
+      }
+      throw new Error(`Node not found with ID: ${nodeId}`);
+    }
 
-  return filterFigmaNode(response.document);
+    const response = await node.exportAsync({
+      format: "JSON_REST_V1",
+    });
+
+    return filterFigmaNode(response.document);
+  } catch (error) {
+    // Enhanced error handling for special node types
+    if (error.message?.includes("cannot read property") || error.message?.includes("null")) {
+      return {
+        id: nodeId,
+        error: error.message,
+        message: "This node type may require special handling. Try using scan_nodes_by_types or get_document_info instead.",
+        alternativeTools: ["scan_nodes_by_types", "get_document_info", "get_slide_grid"],
+        editorType: figma.editorType
+      };
+    }
+    throw error;
+  }
 }
 
 async function getNodesInfo(nodeIds) {
@@ -1357,101 +1420,124 @@ async function getSlideGrid() {
   }
 
   try {
-    // Try the correct API method first (on figma object directly)
-    if (typeof figma.getSlideGrid === 'function') {
-      const grid = figma.getSlideGrid();
-      
-      // Convert slide nodes to basic info
-      const gridInfo = grid.map(row => 
-        row.map(slide => ({
-          id: slide.id,
-          name: slide.name,
-          type: slide.type,
-          x: slide.x,
-          y: slide.y
-        }))
-      );
-
-      return {
-        grid: gridInfo,
-        totalSlides: grid.flat().length,
-        rows: grid.length,
-        method: 'figma.getSlideGrid'
+    // Primary method: Use proven scanning approach that works reliably
+    // Find all slides and slide rows using the same approach as scan_nodes_by_types
+    const slides = figma.currentPage.findAll(n => n.type === 'SLIDE');
+    const slideRows = figma.currentPage.findAll(n => n.type === 'SLIDE_ROW');
+    
+    if (slides.length === 0) {
+      return { 
+        grid: [], 
+        totalSlides: 0, 
+        rows: 0, 
+        slideRows: [],
+        method: 'scanning',
+        message: 'No slides found in the presentation'
       };
-    } 
-    // Try the old API method as second fallback
-    else if (typeof figma.currentPage.getSlideGrid === 'function') {
-      const grid = figma.currentPage.getSlideGrid();
-      
-      // Convert slide nodes to basic info
-      const gridInfo = grid.map(row => 
-        row.map(slide => ({
-          id: slide.id,
-          name: slide.name,
-          type: slide.type,
-          x: slide.x,
-          y: slide.y
-        }))
-      );
-
-      return {
-        grid: gridInfo,
-        totalSlides: grid.flat().length,
-        rows: grid.length,
-        method: 'figma.currentPage.getSlideGrid'
-      };
-    } else {
-      // Manual fallback implementation: build grid from slide positions
-      const slides = figma.currentPage.findAll(n => n.type === 'SLIDE');
-      if (slides.length === 0) {
-        return { grid: [], totalSlides: 0, rows: 0, method: 'manual' };
+    }
+    
+    // Build a map of slide row IDs to their slides
+    const rowToSlidesMap = {};
+    const slideToRowMap = {};
+    
+    // First, map each slide to its parent row
+    slides.forEach(slide => {
+      let parent = slide.parent;
+      while (parent && parent.type !== 'SLIDE_ROW') {
+        parent = parent.parent;
       }
+      if (parent && parent.type === 'SLIDE_ROW') {
+        slideToRowMap[slide.id] = parent.id;
+        if (!rowToSlidesMap[parent.id]) {
+          rowToSlidesMap[parent.id] = [];
+        }
+        rowToSlidesMap[parent.id].push(slide);
+      }
+    });
+    
+    // Create grid structure based on slide rows
+    const grid = [];
+    const rowInfo = [];
+    
+    // Sort slide rows by their Y position to maintain order
+    const sortedRows = [...slideRows].sort((a, b) => a.y - b.y);
+    
+    sortedRows.forEach(row => {
+      const slidesInRow = rowToSlidesMap[row.id] || [];
       
-      // Calculate slide spacing constants
+      // Sort slides in each row by X position
+      const sortedSlidesInRow = slidesInRow
+        .sort((a, b) => a.x - b.x)
+        .map(slide => ({
+          id: slide.id,
+          name: slide.name,
+          type: slide.type,
+          x: slide.x,
+          y: slide.y,
+          width: slide.width,
+          height: slide.height
+        }));
+      
+      if (sortedSlidesInRow.length > 0) {
+        grid.push(sortedSlidesInRow);
+        rowInfo.push({
+          id: row.id,
+          name: row.name,
+          slideCount: sortedSlidesInRow.length,
+          y: row.y
+        });
+      }
+    });
+    
+    // Handle any orphaned slides (slides not in a SLIDE_ROW)
+    const orphanedSlides = slides.filter(slide => !slideToRowMap[slide.id]);
+    if (orphanedSlides.length > 0) {
+      // Group orphaned slides by their Y position
       const SLIDE_HEIGHT = 1080;
       const SPACING = 240;
       const ROW_HEIGHT = SLIDE_HEIGHT + SPACING;
       
-      // Sort slides by position to determine grid structure
-      const sortedSlides = [...slides].sort((a, b) => {
-        if (Math.abs(a.y - b.y) < 50) {
-          return a.x - b.x; // Same row, sort by x
-        }
-        return a.y - b.y; // Different rows, sort by y
-      });
-      
-      // Group slides into rows based on y position
-      const slidesByRow = {};
-      
-      slides.forEach(slide => {
-        // Calculate row based on Y position
+      const orphansByRow = {};
+      orphanedSlides.forEach(slide => {
         const row = Math.floor((slide.y - 240) / ROW_HEIGHT);
-        if (!slidesByRow[row]) slidesByRow[row] = [];
-        slidesByRow[row].push({
+        if (!orphansByRow[row]) orphansByRow[row] = [];
+        orphansByRow[row].push({
           id: slide.id,
           name: slide.name,
           type: slide.type,
           x: slide.x,
-          y: slide.y
+          y: slide.y,
+          width: slide.width,
+          height: slide.height
         });
       });
       
-      // Sort slides in each row by X position
-      Object.values(slidesByRow).forEach(row => {
-        row.sort((a, b) => a.x - b.x);
-      });
-      
-      const gridArray = Object.keys(slidesByRow)
+      // Add orphaned slides to grid
+      Object.keys(orphansByRow)
         .sort((a, b) => Number(a) - Number(b))
-        .map(key => slidesByRow[key]);
-      
-      return {
-        grid: gridArray,
-        totalSlides: slides.length,
-        rows: gridArray.length,
-        method: 'manual'
-      };
+        .forEach(rowKey => {
+          const slidesInRow = orphansByRow[rowKey].sort((a, b) => a.x - b.x);
+          grid.push(slidesInRow);
+          rowInfo.push({
+            id: `orphan-row-${rowKey}`,
+            name: `Orphaned Slides Row ${rowKey}`,
+            slideCount: slidesInRow.length,
+            y: slidesInRow[0].y,
+            isOrphaned: true
+          });
+        });
     }
+    
+    return {
+      grid: grid,
+      totalSlides: slides.length,
+      rows: grid.length,
+      slideRows: rowInfo,
+      method: 'scanning',
+      hasOrphanedSlides: orphanedSlides.length > 0,
+      orphanedSlidesCount: orphanedSlides.length
+    };
+    
   } catch (error) {
     throw new Error(`Failed to get slide grid: ${error.message}`);
   }

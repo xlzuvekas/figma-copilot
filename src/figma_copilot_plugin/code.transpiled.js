@@ -749,29 +749,105 @@ function getNodeInfo(_x4) {
 }
 function _getNodeInfo() {
   _getNodeInfo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(nodeId) {
-    var node, response;
+    var currentPage, slides, slideRows, node, response, _error$message, _error$message2, _t7, _t8;
     return _regenerator().w(function (_context0) {
       while (1) switch (_context0.n) {
         case 0:
-          _context0.n = 1;
-          return figma.getNodeByIdAsync(nodeId);
-        case 1:
-          node = _context0.v;
-          if (node) {
+          if (!(nodeId === "0:3" || nodeId.includes(":3"))) {
+            _context0.n = 4;
+            break;
+          }
+          _context0.p = 1;
+          currentPage = figma.currentPage;
+          if (!(figma.editorType === "slides")) {
             _context0.n = 2;
             break;
           }
-          throw new Error("Node not found with ID: ".concat(nodeId));
+          // For Figma Slides, return information about the slide structure
+          slides = currentPage.findAll(function (n) {
+            return n.type === 'SLIDE';
+          });
+          slideRows = currentPage.findAll(function (n) {
+            return n.type === 'SLIDE_ROW';
+          });
+          return _context0.a(2, {
+            id: nodeId,
+            name: "Slide Grid",
+            type: "SLIDE_GRID",
+            editorType: figma.editorType,
+            slideCount: slides.length,
+            rowCount: slideRows.length,
+            message: "SLIDE_GRID nodes cannot be accessed directly. Use scan_nodes_by_types or get_slide_grid instead.",
+            alternativeTools: ["scan_nodes_by_types", "get_slide_grid", "get_document_info"],
+            pageInfo: {
+              id: currentPage.id,
+              name: currentPage.name,
+              type: currentPage.type
+            }
+          });
         case 2:
-          _context0.n = 3;
+          _context0.n = 4;
+          break;
+        case 3:
+          _context0.p = 3;
+          _t7 = _context0.v;
+          return _context0.a(2, {
+            id: nodeId,
+            type: "SLIDE_GRID",
+            error: "SLIDE_GRID node cannot be accessed directly",
+            message: "This is a special node type in Figma Slides. Use scan_nodes_by_types with SLIDE and SLIDE_ROW types instead.",
+            alternativeTools: ["scan_nodes_by_types", "get_slide_grid", "get_document_info"]
+          });
+        case 4:
+          _context0.p = 4;
+          _context0.n = 5;
+          return figma.getNodeByIdAsync(nodeId);
+        case 5:
+          node = _context0.v;
+          if (node) {
+            _context0.n = 7;
+            break;
+          }
+          if (!(figma.editorType === "slides")) {
+            _context0.n = 6;
+            break;
+          }
+          return _context0.a(2, {
+            id: nodeId,
+            error: "Node not found with ID: ".concat(nodeId),
+            message: "This might be a special node type. Try using scan_nodes_by_types or get_document_info instead.",
+            alternativeTools: ["scan_nodes_by_types", "get_document_info", "get_slide_grid"]
+          });
+        case 6:
+          throw new Error("Node not found with ID: ".concat(nodeId));
+        case 7:
+          _context0.n = 8;
           return node.exportAsync({
             format: "JSON_REST_V1"
           });
-        case 3:
+        case 8:
           response = _context0.v;
           return _context0.a(2, filterFigmaNode(response.document));
+        case 9:
+          _context0.p = 9;
+          _t8 = _context0.v;
+          if (!((_error$message = _t8.message) !== null && _error$message !== void 0 && _error$message.includes("cannot read property") || (_error$message2 = _t8.message) !== null && _error$message2 !== void 0 && _error$message2.includes("null"))) {
+            _context0.n = 10;
+            break;
+          }
+          return _context0.a(2, {
+            id: nodeId,
+            error: _t8.message,
+            message: "This node type may require special handling. Try using scan_nodes_by_types or get_document_info instead.",
+            alternativeTools: ["scan_nodes_by_types", "get_document_info", "get_slide_grid"],
+            editorType: figma.editorType
+          });
+        case 10:
+          throw _t8;
+        case 11:
+          return _context0.a(2);
       }
-    }, _callee0);
+    }, _callee0, null, [[4, 9], [1, 3]]);
   }));
   return _getNodeInfo.apply(this, arguments);
 }
@@ -780,7 +856,7 @@ function getNodesInfo(_x5) {
 }
 function _getNodesInfo() {
   _getNodesInfo = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(nodeIds) {
-    var nodes, validNodes, responses, _t7;
+    var nodes, validNodes, responses, _t9;
     return _regenerator().w(function (_context10) {
       while (1) switch (_context10.n) {
         case 0:
@@ -824,8 +900,8 @@ function _getNodesInfo() {
           return _context10.a(2, responses);
         case 3:
           _context10.p = 3;
-          _t7 = _context10.v;
-          throw new Error("Error getting nodes info: ".concat(_t7.message));
+          _t9 = _context10.v;
+          throw new Error("Error getting nodes info: ".concat(_t9.message));
         case 4:
           return _context10.a(2);
       }
@@ -838,7 +914,7 @@ function getReactions(_x6) {
 }
 function _getReactions() {
   _getReactions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(nodeIds) {
-    var commandId, findNodesWithReactions, _findNodesWithReactions, highlightNodeWithAnimation, _highlightNodeWithAnimation, getNodePath, allResults, processedCount, totalCount, i, nodeId, node, processedNodes, nodeResults, _t9, _t0;
+    var commandId, findNodesWithReactions, _findNodesWithReactions, highlightNodeWithAnimation, _highlightNodeWithAnimation, getNodePath, allResults, processedCount, totalCount, i, nodeId, node, processedNodes, nodeResults, _t1, _t10;
     return _regenerator().w(function (_context13) {
       while (1) switch (_context13.n) {
         case 0:
@@ -910,7 +986,7 @@ function _getReactions() {
                 _step,
                 child,
                 _args11 = arguments,
-                _t8;
+                _t0;
               return _regenerator().w(function (_context11) {
                 while (1) switch (_context11.n) {
                   case 0:
@@ -982,8 +1058,8 @@ function _getReactions() {
                     break;
                   case 7:
                     _context11.p = 7;
-                    _t8 = _context11.v;
-                    _iterator.e(_t8);
+                    _t0 = _context11.v;
+                    _iterator.e(_t0);
                   case 8:
                     _context11.p = 8;
                     _iterator.f();
@@ -1046,9 +1122,9 @@ function _getReactions() {
           break;
         case 6:
           _context13.p = 6;
-          _t9 = _context13.v;
+          _t1 = _context13.v;
           processedCount++;
-          sendProgressUpdate(commandId, "get_reactions", "in_progress", processedCount / totalCount, totalCount, processedCount, "Error processing node: ".concat(_t9.message));
+          sendProgressUpdate(commandId, "get_reactions", "in_progress", processedCount / totalCount, totalCount, processedCount, "Error processing node: ".concat(_t1.message));
         case 7:
           i++;
           _context13.n = 1;
@@ -1063,8 +1139,8 @@ function _getReactions() {
           });
         case 9:
           _context13.p = 9;
-          _t0 = _context13.v;
-          throw new Error("Failed to get reactions: ".concat(_t0.message));
+          _t10 = _context13.v;
+          throw new Error("Failed to get reactions: ".concat(_t10.message));
         case 10:
           return _context13.a(2);
       }
@@ -1077,7 +1153,7 @@ function readMyDesign() {
 }
 function _readMyDesign() {
   _readMyDesign = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15() {
-    var nodes, validNodes, responses, _t1;
+    var nodes, validNodes, responses, _t11;
     return _regenerator().w(function (_context15) {
       while (1) switch (_context15.n) {
         case 0:
@@ -1121,8 +1197,8 @@ function _readMyDesign() {
           return _context15.a(2, responses);
         case 3:
           _context15.p = 3;
-          _t1 = _context15.v;
-          throw new Error("Error getting nodes info: ".concat(_t1.message));
+          _t11 = _context15.v;
+          throw new Error("Error getting nodes info: ".concat(_t11.message));
         case 4:
           return _context15.a(2);
       }
@@ -1570,7 +1646,7 @@ function setSlideGrid(_x10) {
 }
 function _setSlideGrid() {
   _setSlideGrid = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(params) {
-    var _ref19, slides, slideArrangements, _iterator2, _step2, _row, slideNodes, _iterator3, _step3, _slideId, node, SLIDE_WIDTH, SLIDE_HEIGHT, SPACING, START_X, START_Y, updatedCount, rowIndex, row, colIndex, slideId, slide, _t10, _t11, _t12;
+    var _ref19, slides, slideArrangements, _iterator2, _step2, _row, slideNodes, _iterator3, _step3, _slideId, node, SLIDE_WIDTH, SLIDE_HEIGHT, SPACING, START_X, START_Y, updatedCount, rowIndex, row, colIndex, slideId, slide, _t12, _t13, _t14;
     return _regenerator().w(function (_context21) {
       while (1) switch (_context21.n) {
         case 0:
@@ -1628,8 +1704,8 @@ function _setSlideGrid() {
           break;
         case 11:
           _context21.p = 11;
-          _t10 = _context21.v;
-          _iterator3.e(_t10);
+          _t12 = _context21.v;
+          _iterator3.e(_t12);
         case 12:
           _context21.p = 12;
           _iterator3.f();
@@ -1644,8 +1720,8 @@ function _setSlideGrid() {
           break;
         case 16:
           _context21.p = 16;
-          _t11 = _context21.v;
-          _iterator2.e(_t11);
+          _t13 = _context21.v;
+          _iterator2.e(_t13);
         case 17:
           _context21.p = 17;
           _iterator2.f();
@@ -1725,8 +1801,8 @@ function _setSlideGrid() {
           break;
         case 28:
           _context21.p = 28;
-          _t12 = _context21.v;
-          throw new Error("Failed to set slide grid: ".concat(_t12.message));
+          _t14 = _context21.v;
+          throw new Error("Failed to set slide grid: ".concat(_t14.message));
         case 29:
           return _context21.a(2);
       }
@@ -1918,7 +1994,7 @@ function getSlidesMode() {
 }
 function _getSlidesMode() {
   _getSlidesMode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25() {
-    var mode, modeMap, _t13;
+    var mode, modeMap, _t15;
     return _regenerator().w(function (_context25) {
       while (1) switch (_context25.n) {
         case 0:
@@ -1948,8 +2024,8 @@ function _getSlidesMode() {
           break;
         case 4:
           _context25.p = 4;
-          _t13 = _context25.v;
-          throw new Error("Failed to get slides mode: ".concat(_t13.message));
+          _t15 = _context25.v;
+          throw new Error("Failed to get slides mode: ".concat(_t15.message));
         case 5:
           return _context25.a(2);
       }
@@ -1962,7 +2038,7 @@ function setSlidesMode(_x13) {
 }
 function _setSlidesMode() {
   _setSlidesMode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(params) {
-    var _ref22, mode, modeMap, mappedMode, _t14;
+    var _ref22, mode, modeMap, mappedMode, _t16;
     return _regenerator().w(function (_context26) {
       while (1) switch (_context26.n) {
         case 0:
@@ -2020,8 +2096,8 @@ function _setSlidesMode() {
           break;
         case 9:
           _context26.p = 9;
-          _t14 = _context26.v;
-          throw new Error("Failed to set slides mode: ".concat(_t14.message));
+          _t16 = _context26.v;
+          throw new Error("Failed to set slides mode: ".concat(_t16.message));
         case 10:
           return _context26.a(2);
       }
@@ -2034,7 +2110,7 @@ function getSlideGrid() {
 }
 function _getSlideGrid() {
   _getSlideGrid = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee27() {
-    var grid, gridInfo, _grid, _gridInfo, slides, SLIDE_HEIGHT, SPACING, ROW_HEIGHT, sortedSlides, slidesByRow, gridArray, _t15;
+    var slides, slideRows, rowToSlidesMap, slideToRowMap, grid, rowInfo, sortedRows, orphanedSlides, SLIDE_HEIGHT, SPACING, ROW_HEIGHT, orphansByRow, _t17;
     return _regenerator().w(function (_context27) {
       while (1) switch (_context27.n) {
         case 0:
@@ -2045,119 +2121,136 @@ function _getSlideGrid() {
           throw new Error("getSlideGrid can only be used in Figma Slides documents");
         case 1:
           _context27.p = 1;
-          if (!(typeof figma.getSlideGrid === 'function')) {
-            _context27.n = 2;
-            break;
-          }
-          grid = figma.getSlideGrid(); // Convert slide nodes to basic info
-          gridInfo = grid.map(function (row) {
-            return row.map(function (slide) {
-              return {
-                id: slide.id,
-                name: slide.name,
-                type: slide.type,
-                x: slide.x,
-                y: slide.y
-              };
-            });
-          });
-          return _context27.a(2, {
-            grid: gridInfo,
-            totalSlides: grid.flat().length,
-            rows: grid.length,
-            method: 'figma.getSlideGrid'
-          });
-        case 2:
-          if (!(typeof figma.currentPage.getSlideGrid === 'function')) {
-            _context27.n = 3;
-            break;
-          }
-          _grid = figma.currentPage.getSlideGrid(); // Convert slide nodes to basic info
-          _gridInfo = _grid.map(function (row) {
-            return row.map(function (slide) {
-              return {
-                id: slide.id,
-                name: slide.name,
-                type: slide.type,
-                x: slide.x,
-                y: slide.y
-              };
-            });
-          });
-          return _context27.a(2, {
-            grid: _gridInfo,
-            totalSlides: _grid.flat().length,
-            rows: _grid.length,
-            method: 'figma.currentPage.getSlideGrid'
-          });
-        case 3:
-          // Manual fallback implementation: build grid from slide positions
+          // Primary method: Use proven scanning approach that works reliably
+          // Find all slides and slide rows using the same approach as scan_nodes_by_types
           slides = figma.currentPage.findAll(function (n) {
             return n.type === 'SLIDE';
           });
+          slideRows = figma.currentPage.findAll(function (n) {
+            return n.type === 'SLIDE_ROW';
+          });
           if (!(slides.length === 0)) {
-            _context27.n = 4;
+            _context27.n = 2;
             break;
           }
           return _context27.a(2, {
             grid: [],
             totalSlides: 0,
             rows: 0,
-            method: 'manual'
+            slideRows: [],
+            method: 'scanning',
+            message: 'No slides found in the presentation'
           });
-        case 4:
-          // Calculate slide spacing constants
-          SLIDE_HEIGHT = 1080;
-          SPACING = 240;
-          ROW_HEIGHT = SLIDE_HEIGHT + SPACING; // Sort slides by position to determine grid structure
-          sortedSlides = _toConsumableArray(slides).sort(function (a, b) {
-            if (Math.abs(a.y - b.y) < 50) {
-              return a.x - b.x; // Same row, sort by x
-            }
-            return a.y - b.y; // Different rows, sort by y
-          }); // Group slides into rows based on y position
-          slidesByRow = {};
+        case 2:
+          // Build a map of slide row IDs to their slides
+          rowToSlidesMap = {};
+          slideToRowMap = {}; // First, map each slide to its parent row
           slides.forEach(function (slide) {
-            // Calculate row based on Y position
-            var row = Math.floor((slide.y - 240) / ROW_HEIGHT);
-            if (!slidesByRow[row]) slidesByRow[row] = [];
-            slidesByRow[row].push({
-              id: slide.id,
-              name: slide.name,
-              type: slide.type,
-              x: slide.x,
-              y: slide.y
-            });
+            var parent = slide.parent;
+            while (parent && parent.type !== 'SLIDE_ROW') {
+              parent = parent.parent;
+            }
+            if (parent && parent.type === 'SLIDE_ROW') {
+              slideToRowMap[slide.id] = parent.id;
+              if (!rowToSlidesMap[parent.id]) {
+                rowToSlidesMap[parent.id] = [];
+              }
+              rowToSlidesMap[parent.id].push(slide);
+            }
           });
 
-          // Sort slides in each row by X position
-          Object.values(slidesByRow).forEach(function (row) {
-            row.sort(function (a, b) {
+          // Create grid structure based on slide rows
+          grid = [];
+          rowInfo = []; // Sort slide rows by their Y position to maintain order
+          sortedRows = _toConsumableArray(slideRows).sort(function (a, b) {
+            return a.y - b.y;
+          });
+          sortedRows.forEach(function (row) {
+            var slidesInRow = rowToSlidesMap[row.id] || [];
+
+            // Sort slides in each row by X position
+            var sortedSlidesInRow = slidesInRow.sort(function (a, b) {
               return a.x - b.x;
+            }).map(function (slide) {
+              return {
+                id: slide.id,
+                name: slide.name,
+                type: slide.type,
+                x: slide.x,
+                y: slide.y,
+                width: slide.width,
+                height: slide.height
+              };
             });
+            if (sortedSlidesInRow.length > 0) {
+              grid.push(sortedSlidesInRow);
+              rowInfo.push({
+                id: row.id,
+                name: row.name,
+                slideCount: sortedSlidesInRow.length,
+                y: row.y
+              });
+            }
           });
-          gridArray = Object.keys(slidesByRow).sort(function (a, b) {
-            return Number(a) - Number(b);
-          }).map(function (key) {
-            return slidesByRow[key];
+
+          // Handle any orphaned slides (slides not in a SLIDE_ROW)
+          orphanedSlides = slides.filter(function (slide) {
+            return !slideToRowMap[slide.id];
           });
+          if (orphanedSlides.length > 0) {
+            // Group orphaned slides by their Y position
+            SLIDE_HEIGHT = 1080;
+            SPACING = 240;
+            ROW_HEIGHT = SLIDE_HEIGHT + SPACING;
+            orphansByRow = {};
+            orphanedSlides.forEach(function (slide) {
+              var row = Math.floor((slide.y - 240) / ROW_HEIGHT);
+              if (!orphansByRow[row]) orphansByRow[row] = [];
+              orphansByRow[row].push({
+                id: slide.id,
+                name: slide.name,
+                type: slide.type,
+                x: slide.x,
+                y: slide.y,
+                width: slide.width,
+                height: slide.height
+              });
+            });
+
+            // Add orphaned slides to grid
+            Object.keys(orphansByRow).sort(function (a, b) {
+              return Number(a) - Number(b);
+            }).forEach(function (rowKey) {
+              var slidesInRow = orphansByRow[rowKey].sort(function (a, b) {
+                return a.x - b.x;
+              });
+              grid.push(slidesInRow);
+              rowInfo.push({
+                id: "orphan-row-".concat(rowKey),
+                name: "Orphaned Slides Row ".concat(rowKey),
+                slideCount: slidesInRow.length,
+                y: slidesInRow[0].y,
+                isOrphaned: true
+              });
+            });
+          }
           return _context27.a(2, {
-            grid: gridArray,
+            grid: grid,
             totalSlides: slides.length,
-            rows: gridArray.length,
-            method: 'manual'
+            rows: grid.length,
+            slideRows: rowInfo,
+            method: 'scanning',
+            hasOrphanedSlides: orphanedSlides.length > 0,
+            orphanedSlidesCount: orphanedSlides.length
           });
-        case 5:
-          _context27.n = 7;
-          break;
-        case 6:
-          _context27.p = 6;
-          _t15 = _context27.v;
-          throw new Error("Failed to get slide grid: ".concat(_t15.message));
-        case 7:
+        case 3:
+          _context27.p = 3;
+          _t17 = _context27.v;
+          throw new Error("Failed to get slide grid: ".concat(_t17.message));
+        case 4:
           return _context27.a(2);
       }
-    }, _callee27, null, [[1, 6]]);
+    }, _callee27, null, [[1, 3]]);
   }));
   return _getSlideGrid.apply(this, arguments);
 }
@@ -2166,7 +2259,7 @@ function createText(_x14) {
 }
 function _createText() {
   _createText = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee28(params) {
-    var _ref23, _ref23$x, x, _ref23$y, y, _ref23$text, text, _ref23$fontSize, fontSize, _ref23$fontWeight, fontWeight, _ref23$fontColor, fontColor, _ref23$name, name, parentId, getFontStyle, actualX, actualY, targetSlide, absoluteCoords, textNode, paintStyle, parentNode, _t16;
+    var _ref23, _ref23$x, x, _ref23$y, y, _ref23$text, text, _ref23$fontSize, fontSize, _ref23$fontWeight, fontWeight, _ref23$fontColor, fontColor, _ref23$name, name, parentId, getFontStyle, actualX, actualY, targetSlide, absoluteCoords, textNode, paintStyle, parentNode, _t18;
     return _regenerator().w(function (_context28) {
       while (1) switch (_context28.n) {
         case 0:
@@ -2238,8 +2331,8 @@ function _createText() {
           break;
         case 5:
           _context28.p = 5;
-          _t16 = _context28.v;
-          console.error("Error setting font size", _t16);
+          _t18 = _context28.v;
+          console.error("Error setting font size", _t18);
         case 6:
           setCharacters(textNode, text);
 
@@ -2307,7 +2400,7 @@ function createShapeWithText(_x15) {
 }
 function _createShapeWithText() {
   _createShapeWithText = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee29(params) {
-    var _ref24, _ref24$x, x, _ref24$y, y, _ref24$width, width, _ref24$height, height, _ref24$shapeType, shapeType, _ref24$text, text, fillColor, strokeColor, strokeWeight, _ref24$fontSize, fontSize, _ref24$fontWeight, fontWeight, _ref24$fontColor, fontColor, _ref24$name, name, parentId, shapeWithText, actualX, actualY, targetSlide, absoluteCoords, paintStyle, strokeStyle, textPaintStyle, parentNode, result, localCoords, _t17;
+    var _ref24, _ref24$x, x, _ref24$y, y, _ref24$width, width, _ref24$height, height, _ref24$shapeType, shapeType, _ref24$text, text, fillColor, strokeColor, strokeWeight, _ref24$fontSize, fontSize, _ref24$fontWeight, fontWeight, _ref24$fontColor, fontColor, _ref24$name, name, parentId, shapeWithText, actualX, actualY, targetSlide, absoluteCoords, paintStyle, strokeStyle, textPaintStyle, parentNode, result, localCoords, _t19;
     return _regenerator().w(function (_context29) {
       while (1) switch (_context29.n) {
         case 0:
@@ -2415,8 +2508,8 @@ function _createShapeWithText() {
           break;
         case 7:
           _context29.p = 7;
-          _t17 = _context29.v;
-          console.error("Error setting text properties:", _t17);
+          _t19 = _context29.v;
+          console.error("Error setting text properties:", _t19);
         case 8:
           if (!parentId) {
             _context29.n = 12;
@@ -2472,7 +2565,7 @@ function createTable(_x16) {
 }
 function _createTable() {
   _createTable = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee30(params) {
-    var _ref25, _ref25$x, x, _ref25$y, y, _ref25$rows, rows, _ref25$columns, columns, _ref25$cellWidth, cellWidth, _ref25$cellHeight, cellHeight, _ref25$name, name, parentId, actualX, actualY, targetSlide, absoluteCoords, table, row, col, cell, parentNode, tableFrame, r, rowFrame, c, cellFrame, _parentNode, _t18;
+    var _ref25, _ref25$x, x, _ref25$y, y, _ref25$rows, rows, _ref25$columns, columns, _ref25$cellWidth, cellWidth, _ref25$cellHeight, cellHeight, _ref25$name, name, parentId, actualX, actualY, targetSlide, absoluteCoords, table, row, col, cell, parentNode, tableFrame, r, rowFrame, c, cellFrame, _parentNode, _t20;
     return _regenerator().w(function (_context30) {
       while (1) switch (_context30.n) {
         case 0:
@@ -2667,8 +2760,8 @@ function _createTable() {
           break;
         case 16:
           _context30.p = 16;
-          _t18 = _context30.v;
-          throw new Error("Failed to create table: ".concat(_t18.message));
+          _t20 = _context30.v;
+          throw new Error("Failed to create table: ".concat(_t20.message));
         case 17:
           return _context30.a(2);
       }
@@ -2681,7 +2774,7 @@ function createGif(_x17) {
 }
 function _createGif() {
   _createGif = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee31(params) {
-    var _ref26, url, _ref26$x, x, _ref26$y, y, _ref26$width, width, _ref26$height, height, _ref26$name, name, parentId, actualX, actualY, targetSlide, absoluteCoords, gif, parentNode, media, _parentNode2, placeholder, label, _parentNode3, _t19, _t20;
+    var _ref26, url, _ref26$x, x, _ref26$y, y, _ref26$width, width, _ref26$height, height, _ref26$name, name, parentId, actualX, actualY, targetSlide, absoluteCoords, gif, parentNode, media, _parentNode2, placeholder, label, _parentNode3, _t21, _t22;
     return _regenerator().w(function (_context31) {
       while (1) switch (_context31.n) {
         case 0:
@@ -2878,7 +2971,7 @@ function _createGif() {
           break;
         case 20:
           _context31.p = 20;
-          _t19 = _context31.v;
+          _t21 = _context31.v;
           console.warn("Could not load font for GIF placeholder label");
         case 21:
           if (!parentId) {
@@ -2924,8 +3017,8 @@ function _createGif() {
           break;
         case 28:
           _context31.p = 28;
-          _t20 = _context31.v;
-          throw new Error("Failed to create GIF: ".concat(_t20.message));
+          _t22 = _context31.v;
+          throw new Error("Failed to create GIF: ".concat(_t22.message));
         case 29:
           return _context31.a(2);
       }
@@ -3204,7 +3297,7 @@ function getStyles() {
 }
 function _getStyles() {
   _getStyles = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee37() {
-    var styles, _t21, _t22, _t23, _t24;
+    var styles, _t23, _t24, _t25, _t26;
     return _regenerator().w(function (_context37) {
       while (1) switch (_context37.n) {
         case 0:
@@ -3223,24 +3316,24 @@ function _getStyles() {
           _context37.n = 2;
           return figma.getLocalPaintStylesAsync();
         case 2:
-          _t21 = _context37.v;
+          _t23 = _context37.v;
           _context37.n = 3;
           return figma.getLocalTextStylesAsync();
         case 3:
-          _t22 = _context37.v;
+          _t24 = _context37.v;
           _context37.n = 4;
           return figma.getLocalEffectStylesAsync();
         case 4:
-          _t23 = _context37.v;
+          _t25 = _context37.v;
           _context37.n = 5;
           return figma.getLocalGridStylesAsync();
         case 5:
-          _t24 = _context37.v;
+          _t26 = _context37.v;
           styles = {
-            colors: _t21,
-            texts: _t22,
-            effects: _t23,
-            grids: _t24
+            colors: _t23,
+            texts: _t24,
+            effects: _t25,
+            grids: _t26
           };
           return _context37.a(2, {
             colors: styles.colors.map(function (style) {
@@ -3341,7 +3434,7 @@ function createComponentInstance(_x23) {
 }
 function _createComponentInstance() {
   _createComponentInstance = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee39(params) {
-    var _ref32, componentKey, _ref32$x, x, _ref32$y, y, component, instance, _t25;
+    var _ref32, componentKey, _ref32$x, x, _ref32$y, y, component, instance, _t27;
     return _regenerator().w(function (_context39) {
       while (1) switch (_context39.n) {
         case 0:
@@ -3378,8 +3471,8 @@ function _createComponentInstance() {
           });
         case 4:
           _context39.p = 4;
-          _t25 = _context39.v;
-          throw new Error("Error creating component instance: ".concat(_t25.message));
+          _t27 = _context39.v;
+          throw new Error("Error creating component instance: ".concat(_t27.message));
         case 5:
           return _context39.a(2);
       }
@@ -3392,7 +3485,7 @@ function exportNodeAsImage(_x24) {
 }
 function _exportNodeAsImage() {
   _exportNodeAsImage = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee40(params) {
-    var _ref33, nodeId, _ref33$scale, scale, format, node, settings, bytes, mimeType, base64, _t26, _t27;
+    var _ref33, nodeId, _ref33$scale, scale, format, node, settings, bytes, mimeType, base64, _t28, _t29;
     return _regenerator().w(function (_context40) {
       while (1) switch (_context40.n) {
         case 0:
@@ -3432,8 +3525,8 @@ function _exportNodeAsImage() {
           return node.exportAsync(settings);
         case 5:
           bytes = _context40.v;
-          _t26 = format;
-          _context40.n = _t26 === "PNG" ? 6 : _t26 === "JPG" ? 7 : _t26 === "SVG" ? 8 : _t26 === "PDF" ? 9 : 10;
+          _t28 = format;
+          _context40.n = _t28 === "PNG" ? 6 : _t28 === "JPG" ? 7 : _t28 === "SVG" ? 8 : _t28 === "PDF" ? 9 : 10;
           break;
         case 6:
           mimeType = "image/png";
@@ -3461,8 +3554,8 @@ function _exportNodeAsImage() {
           });
         case 12:
           _context40.p = 12;
-          _t27 = _context40.v;
-          throw new Error("Error exporting node as image: ".concat(_t27.message));
+          _t29 = _context40.v;
+          throw new Error("Error exporting node as image: ".concat(_t29.message));
         case 13:
           return _context40.a(2);
       }
@@ -3588,7 +3681,7 @@ function setTextContent(_x26) {
 } // Initialize settings on load
 function _setTextContent() {
   _setTextContent = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee42(params) {
-    var _ref35, nodeId, text, node, textNode, fontsToLoad, hasMixedFonts, loadResults, failedLoads, fallbackFont, success, safeFontName, _t28;
+    var _ref35, nodeId, text, node, textNode, fontsToLoad, hasMixedFonts, loadResults, failedLoads, fallbackFont, success, safeFontName, _t30;
     return _regenerator().w(function (_context42) {
       while (1) switch (_context42.n) {
         case 0:
@@ -3725,8 +3818,8 @@ function _setTextContent() {
           });
         case 15:
           _context42.p = 15;
-          _t28 = _context42.v;
-          throw new Error("Error setting text content: ".concat(_t28.message));
+          _t30 = _context42.v;
+          throw new Error("Error setting text content: ".concat(_t30.message));
         case 16:
           return _context42.a(2);
       }
@@ -4138,7 +4231,7 @@ function scanTextNodes(_x38) {
 } // Helper function to collect all nodes that need to be processed
 function _scanTextNodes() {
   _scanTextNodes = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee44(params) {
-    var _ref37, nodeId, _ref37$useChunking, useChunking, _ref37$chunkSize, chunkSize, _ref37$commandId, commandId, node, textNodes, nodesToProcess, totalNodes, totalChunks, allTextNodes, processedNodes, chunksProcessed, i, chunkEnd, chunkNodes, chunkTextNodes, _iterator4, _step4, nodeInfo, textNodeInfo, _t29, _t30, _t31;
+    var _ref37, nodeId, _ref37$useChunking, useChunking, _ref37$chunkSize, chunkSize, _ref37$commandId, commandId, node, textNodes, nodesToProcess, totalNodes, totalChunks, allTextNodes, processedNodes, chunksProcessed, i, chunkEnd, chunkNodes, chunkTextNodes, _iterator4, _step4, nodeInfo, textNodeInfo, _t31, _t32, _t33;
     return _regenerator().w(function (_context44) {
       while (1) switch (_context44.n) {
         case 0:
@@ -4185,14 +4278,14 @@ function _scanTextNodes() {
           });
         case 5:
           _context44.p = 5;
-          _t29 = _context44.v;
-          console.error("Error scanning text nodes:", _t29);
+          _t31 = _context44.v;
+          console.error("Error scanning text nodes:", _t31);
 
           // Send error progress update
-          sendProgressUpdate(commandId, "scan_text_nodes", "error", 0, 0, 0, "Error scanning text nodes: ".concat(_t29.message), {
-            error: _t29.message
+          sendProgressUpdate(commandId, "scan_text_nodes", "error", 0, 0, 0, "Error scanning text nodes: ".concat(_t31.message), {
+            error: _t31.message
           });
-          throw new Error("Error scanning text nodes: ".concat(_t29.message));
+          throw new Error("Error scanning text nodes: ".concat(_t31.message));
         case 6:
           // Chunked implementation
           console.log("Using chunked scanning with chunk size: ".concat(chunkSize));
@@ -4271,8 +4364,8 @@ function _scanTextNodes() {
           break;
         case 13:
           _context44.p = 13;
-          _t30 = _context44.v;
-          console.error("Error processing text node: ".concat(_t30.message));
+          _t32 = _context44.v;
+          console.error("Error processing text node: ".concat(_t32.message));
           // Continue with other nodes
         case 14:
           _context44.n = 15;
@@ -4285,8 +4378,8 @@ function _scanTextNodes() {
           break;
         case 17:
           _context44.p = 17;
-          _t31 = _context44.v;
-          _iterator4.e(_t31);
+          _t33 = _context44.v;
+          _iterator4.e(_t33);
         case 18:
           _context44.p = 18;
           _iterator4.f();
@@ -4353,7 +4446,7 @@ function _collectNodesToProcess() {
       _step5,
       child,
       _args45 = arguments,
-      _t32;
+      _t34;
     return _regenerator().w(function (_context45) {
       while (1) switch (_context45.n) {
         case 0:
@@ -4398,8 +4491,8 @@ function _collectNodesToProcess() {
           break;
         case 6:
           _context45.p = 6;
-          _t32 = _context45.v;
-          _iterator5.e(_t32);
+          _t34 = _context45.v;
+          _iterator5.e(_t34);
         case 7:
           _context45.p = 7;
           _iterator5.f();
@@ -4416,7 +4509,7 @@ function processTextNode(_x40, _x41, _x42) {
 } // A delay function that returns a promise
 function _processTextNode() {
   _processTextNode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee46(node, parentPath, depth) {
-    var fontFamily, fontStyle, safeTextNode, originalFills, _t33, _t34;
+    var fontFamily, fontStyle, safeTextNode, originalFills, _t35, _t36;
     return _regenerator().w(function (_context46) {
       while (1) switch (_context46.n) {
         case 0:
@@ -4478,15 +4571,15 @@ function _processTextNode() {
           break;
         case 4:
           _context46.p = 4;
-          _t33 = _context46.v;
-          console.error("Error highlighting text node:", _t33);
+          _t35 = _context46.v;
+          console.error("Error highlighting text node:", _t35);
           // Continue anyway, highlighting is just visual feedback
         case 5:
           return _context46.a(2, safeTextNode);
         case 6:
           _context46.p = 6;
-          _t34 = _context46.v;
-          console.error("Error processing text node:", _t34);
+          _t36 = _context46.v;
+          console.error("Error processing text node:", _t36);
           return _context46.a(2, null);
       }
     }, _callee46, null, [[2, 4], [1, 6]]);
@@ -4517,9 +4610,9 @@ function _findTextNodes() {
       _step6,
       child,
       _args47 = arguments,
-      _t35,
-      _t36,
-      _t37;
+      _t37,
+      _t38,
+      _t39;
     return _regenerator().w(function (_context47) {
       while (1) switch (_context47.n) {
         case 0:
@@ -4591,8 +4684,8 @@ function _findTextNodes() {
           break;
         case 5:
           _context47.p = 5;
-          _t35 = _context47.v;
-          console.error("Error highlighting text node:", _t35);
+          _t37 = _context47.v;
+          console.error("Error highlighting text node:", _t37);
           // Continue anyway, highlighting is just visual feedback
         case 6:
           textNodes.push(safeTextNode);
@@ -4600,8 +4693,8 @@ function _findTextNodes() {
           break;
         case 7:
           _context47.p = 7;
-          _t36 = _context47.v;
-          console.error("Error processing text node:", _t36);
+          _t38 = _context47.v;
+          console.error("Error processing text node:", _t38);
           // Skip this node but continue with others
         case 8:
           if (!("children" in node)) {
@@ -4627,8 +4720,8 @@ function _findTextNodes() {
           break;
         case 13:
           _context47.p = 13;
-          _t37 = _context47.v;
-          _iterator6.e(_t37);
+          _t39 = _context47.v;
+          _iterator6.e(_t39);
         case 14:
           _context47.p = 14;
           _iterator6.f();
@@ -4711,7 +4804,7 @@ function _setMultipleTextContents() {
           // Process replacements within a chunk in parallel
           chunkPromises = chunk.map(/*#__PURE__*/function () {
             var _ref39 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee48(replacement) {
-              var textNode, textToUpdate, originalText, originalFills, _t38, _t39;
+              var textNode, textToUpdate, originalText, originalFills, _t40, _t41;
               return _regenerator().w(function (_context48) {
                 while (1) switch (_context48.n) {
                   case 0:
@@ -4816,8 +4909,8 @@ function _setMultipleTextContents() {
                     break;
                   case 10:
                     _context48.p = 10;
-                    _t38 = _context48.v;
-                    console.error("Error restoring fills: ".concat(_t38.message));
+                    _t40 = _context48.v;
+                    console.error("Error restoring fills: ".concat(_t40.message));
                   case 11:
                     console.log("Successfully replaced text in node: ".concat(replacement.nodeId));
                     return _context48.a(2, {
@@ -4828,12 +4921,12 @@ function _setMultipleTextContents() {
                     });
                   case 12:
                     _context48.p = 12;
-                    _t39 = _context48.v;
-                    console.error("Error replacing text in node ".concat(replacement.nodeId, ": ").concat(_t39.message));
+                    _t41 = _context48.v;
+                    console.error("Error replacing text in node ".concat(replacement.nodeId, ": ").concat(_t41.message));
                     return _context48.a(2, {
                       success: false,
                       nodeId: replacement.nodeId,
-                      error: "Error applying replacement: ".concat(_t39.message)
+                      error: "Error applying replacement: ".concat(_t41.message)
                     });
                 }
               }, _callee48, null, [[8, 10], [1, 12]]);
@@ -4910,7 +5003,7 @@ function updateTextPreserveFormatting(_x45) {
 }
 function _updateTextPreserveFormatting() {
   _updateTextPreserveFormatting = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee50(params) {
-    var _ref40, nodeId, newText, _ref40$preserveFormat, preserveFormattingStrategy, node, oldText, formatting, styleProps, currentStart, currentStyle, rangeEnd, _iterator7, _step7, _prop, _value, i, matches, _i, _Object$keys, prop, value, fontsToLoad, _i2, _formatting, format, _iterator8, _step8, font, _i3, _formatting2, _format, start, end, oldLength, newLength, _i4, _Object$entries, _Object$entries$_i, _prop2, _value2, _t40, _t41, _t42, _t43;
+    var _ref40, nodeId, newText, _ref40$preserveFormat, preserveFormattingStrategy, node, oldText, formatting, styleProps, currentStart, currentStyle, rangeEnd, _iterator7, _step7, _prop, _value, i, matches, _i, _Object$keys, prop, value, fontsToLoad, _i2, _formatting, format, _iterator8, _step8, font, _i3, _formatting2, _format, start, end, oldLength, newLength, _i4, _Object$entries, _Object$entries$_i, _prop2, _value2, _t42, _t43, _t44, _t45;
     return _regenerator().w(function (_context50) {
       while (1) switch (_context50.n) {
         case 0:
@@ -4996,7 +5089,7 @@ function _updateTextPreserveFormatting() {
           break;
         case 10:
           _context50.p = 10;
-          _t40 = _context50.v;
+          _t42 = _context50.v;
           matches = false;
           return _context50.a(3, 12);
         case 11:
@@ -5059,8 +5152,8 @@ function _updateTextPreserveFormatting() {
           break;
         case 21:
           _context50.p = 21;
-          _t41 = _context50.v;
-          console.warn("Failed to load font ".concat(font.family, " ").concat(font.style, ":"), _t41);
+          _t43 = _context50.v;
+          console.warn("Failed to load font ".concat(font.family, " ").concat(font.style, ":"), _t43);
         case 22:
           _context50.n = 18;
           break;
@@ -5069,8 +5162,8 @@ function _updateTextPreserveFormatting() {
           break;
         case 24:
           _context50.p = 24;
-          _t42 = _context50.v;
-          _iterator8.e(_t42);
+          _t44 = _context50.v;
+          _iterator8.e(_t44);
         case 25:
           _context50.p = 25;
           _iterator8.f();
@@ -5154,8 +5247,8 @@ function _updateTextPreserveFormatting() {
           break;
         case 36:
           _context50.p = 36;
-          _t43 = _context50.v;
-          console.warn("Failed to apply ".concat(_prop2, " to range ").concat(start, "-").concat(end, ":"), _t43);
+          _t45 = _context50.v;
+          console.warn("Failed to apply ".concat(_prop2, " to range ").concat(start, "-").concat(end, ":"), _t45);
         case 37:
           _i4++;
           _context50.n = 33;
@@ -5183,7 +5276,7 @@ function smartTextReplace(_x46) {
 }
 function _smartTextReplace() {
   _smartTextReplace = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee51(params) {
-    var _ref41, nodeId, replacements, _ref41$matchCase, matchCase, node, originalText, formatting, i, charFormat, styleProps, _i5, _styleProps, prop, value, newText, newFormatting, _iterator9, _step9, replacement, find, replace, searchText, searchFor, offset, index, replaceFormatting, baseFormat, _i7, fontsToLoad, _iterator0, _step0, format, _iterator1, _step1, font, currentStart, currentFormat, rangeEnd, _i6, _Object$entries2, _Object$entries2$_i, _prop3, _value3, _t44, _t45, _t46;
+    var _ref41, nodeId, replacements, _ref41$matchCase, matchCase, node, originalText, formatting, i, charFormat, styleProps, _i5, _styleProps, prop, value, newText, newFormatting, _iterator9, _step9, replacement, find, replace, searchText, searchFor, offset, index, replaceFormatting, baseFormat, _i7, fontsToLoad, _iterator0, _step0, format, _iterator1, _step1, font, currentStart, currentFormat, rangeEnd, _i6, _Object$entries2, _Object$entries2$_i, _prop3, _value3, _t46, _t47, _t48;
     return _regenerator().w(function (_context51) {
       while (1) switch (_context51.n) {
         case 0:
@@ -5279,8 +5372,8 @@ function _smartTextReplace() {
           break;
         case 10:
           _context51.p = 10;
-          _t44 = _context51.v;
-          _iterator9.e(_t44);
+          _t46 = _context51.v;
+          _iterator9.e(_t46);
         case 11:
           _context51.p = 11;
           _iterator9.f();
@@ -5318,8 +5411,8 @@ function _smartTextReplace() {
           break;
         case 17:
           _context51.p = 17;
-          _t45 = _context51.v;
-          console.warn("Failed to load font:", _t45);
+          _t47 = _context51.v;
+          console.warn("Failed to load font:", _t47);
         case 18:
           _context51.n = 14;
           break;
@@ -5328,8 +5421,8 @@ function _smartTextReplace() {
           break;
         case 20:
           _context51.p = 20;
-          _t46 = _context51.v;
-          _iterator1.e(_t46);
+          _t48 = _context51.v;
+          _iterator1.e(_t48);
         case 21:
           _context51.p = 21;
           _iterator1.f();
@@ -5375,7 +5468,7 @@ function setMultipleTextContentsWithStyles(_x47) {
 } // Batch operation functions
 function _setMultipleTextContentsWithStyles() {
   _setMultipleTextContentsWithStyles = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee52(params) {
-    var _ref42, nodeId, updates, parentNode, results, _iterator10, _step10, update, textNodeId, text, styles, textNode, fontsToLoad, _iterator11, _step11, style, _iterator12, _step12, font, _iterator13, _step13, _style, start, end, bold, italic, fontSize, fontFamily, fills, currentFont, newStyle, fontStyle, _t47, _t48, _t49, _t50, _t51, _t52, _t53;
+    var _ref42, nodeId, updates, parentNode, results, _iterator10, _step10, update, textNodeId, text, styles, textNode, fontsToLoad, _iterator11, _step11, style, _iterator12, _step12, font, _iterator13, _step13, _style, start, end, bold, italic, fontSize, fontFamily, fills, currentFont, newStyle, fontStyle, _t49, _t50, _t51, _t52, _t53, _t54, _t55;
     return _regenerator().w(function (_context52) {
       while (1) switch (_context52.n) {
         case 0:
@@ -5466,8 +5559,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 14:
           _context52.p = 14;
-          _t47 = _context52.v;
-          console.warn("Failed to load font:", _t47);
+          _t49 = _context52.v;
+          console.warn("Failed to load font:", _t49);
         case 15:
           _context52.n = 11;
           break;
@@ -5476,8 +5569,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 17:
           _context52.p = 17;
-          _t48 = _context52.v;
-          _iterator12.e(_t48);
+          _t50 = _context52.v;
+          _iterator12.e(_t50);
         case 18:
           _context52.p = 18;
           _iterator12.f();
@@ -5534,8 +5627,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 24:
           _context52.p = 24;
-          _t49 = _context52.v;
-          console.warn("Failed to set italic:", _t49);
+          _t51 = _context52.v;
+          console.warn("Failed to set italic:", _t51);
         case 25:
           if (fontSize !== undefined) {
             textNode.setRangeProperty(start, end, 'fontSize', fontSize);
@@ -5560,8 +5653,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 28:
           _context52.p = 28;
-          _t50 = _context52.v;
-          console.warn("Failed to set font:", _t50);
+          _t52 = _context52.v;
+          console.warn("Failed to set font:", _t52);
         case 29:
           if (fills) {
             textNode.setRangeProperty(start, end, 'fills', fills);
@@ -5574,8 +5667,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 32:
           _context52.p = 32;
-          _t51 = _context52.v;
-          _iterator13.e(_t51);
+          _t53 = _context52.v;
+          _iterator13.e(_t53);
         case 33:
           _context52.p = 33;
           _iterator13.f();
@@ -5589,11 +5682,11 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 35:
           _context52.p = 35;
-          _t52 = _context52.v;
+          _t54 = _context52.v;
           results.push({
             nodeId: textNodeId,
             success: false,
-            error: _t52.message
+            error: _t54.message
           });
         case 36:
           _context52.n = 6;
@@ -5603,8 +5696,8 @@ function _setMultipleTextContentsWithStyles() {
           break;
         case 38:
           _context52.p = 38;
-          _t53 = _context52.v;
-          _iterator10.e(_t53);
+          _t55 = _context52.v;
+          _iterator10.e(_t55);
         case 39:
           _context52.p = 39;
           _iterator10.f();
@@ -5678,7 +5771,7 @@ function _cloneMultipleNodes() {
           chunk = chunks[chunkIndex]; // Process chunk
           chunkPromises = chunk.map(/*#__PURE__*/function () {
             var _ref44 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee53(position) {
-              var clone, parentNode, _t54;
+              var clone, parentNode, _t56;
               return _regenerator().w(function (_context53) {
                 while (1) switch (_context53.n) {
                   case 0:
@@ -5717,10 +5810,10 @@ function _cloneMultipleNodes() {
                     });
                   case 4:
                     _context53.p = 4;
-                    _t54 = _context53.v;
+                    _t56 = _context53.v;
                     return _context53.a(2, {
                       success: false,
-                      error: _t54.message,
+                      error: _t56.message,
                       position: position
                     });
                 }
@@ -5783,7 +5876,7 @@ function _getMultipleNodesInfo() {
           results = []; // Process in parallel for speed
           promises = nodeIds.map(/*#__PURE__*/function () {
             var _ref46 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee55(nodeId) {
-              var node, _t55, _t56, _t57;
+              var node, _t57, _t58, _t59;
               return _regenerator().w(function (_context55) {
                 while (1) switch (_context55.n) {
                   case 0:
@@ -5802,23 +5895,23 @@ function _getMultipleNodesInfo() {
                       error: 'Node not found'
                     });
                   case 2:
-                    _t55 = nodeId;
+                    _t57 = nodeId;
                     _context55.n = 3;
                     return getNodeInfoData(node);
                   case 3:
-                    _t56 = _context55.v;
+                    _t58 = _context55.v;
                     return _context55.a(2, {
-                      nodeId: _t55,
+                      nodeId: _t57,
                       success: true,
-                      info: _t56
+                      info: _t58
                     });
                   case 4:
                     _context55.p = 4;
-                    _t57 = _context55.v;
+                    _t59 = _context55.v;
                     return _context55.a(2, {
                       nodeId: nodeId,
                       success: false,
-                      error: _t57.message
+                      error: _t59.message
                     });
                 }
               }, _callee55, null, [[0, 4]]);
@@ -5851,7 +5944,7 @@ function setMultipleNodesProperty(_x50) {
 }
 function _setMultipleNodesProperty() {
   _setMultipleNodesProperty = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee57(params) {
-    var _ref47, nodeIds, property, value, results, _iterator14, _step14, nodeId, node, _t58, _t59;
+    var _ref47, nodeIds, property, value, results, _iterator14, _step14, nodeId, node, _t60, _t61;
     return _regenerator().w(function (_context57) {
       while (1) switch (_context57.n) {
         case 0:
@@ -5929,11 +6022,11 @@ function _setMultipleNodesProperty() {
           break;
         case 9:
           _context57.p = 9;
-          _t58 = _context57.v;
+          _t60 = _context57.v;
           results.push({
             nodeId: nodeId,
             success: false,
-            error: _t58.message
+            error: _t60.message
           });
         case 10:
           _context57.n = 5;
@@ -5943,8 +6036,8 @@ function _setMultipleNodesProperty() {
           break;
         case 12:
           _context57.p = 12;
-          _t59 = _context57.v;
-          _iterator14.e(_t59);
+          _t61 = _context57.v;
+          _iterator14.e(_t61);
         case 13:
           _context57.p = 13;
           _iterator14.f();
@@ -5970,7 +6063,7 @@ function scanNodesWithOptions(_x51) {
 }
 function _scanNodesWithOptions() {
   _scanNodesWithOptions = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee59(params) {
-    var _ref48, nodeId, _ref48$options, options, _options$maxDepth, maxDepth, _options$nodeTypes, nodeTypes, _options$timeout, timeout, _options$returnPartia, returnPartialOnTimeout, _options$includeHidde, includeHidden, startTime, results, visited, scanNode, _scanNode, rootNode, elapsed, _t61;
+    var _ref48, nodeId, _ref48$options, options, _options$maxDepth, maxDepth, _options$nodeTypes, nodeTypes, _options$timeout, timeout, _options$returnPartia, returnPartialOnTimeout, _options$includeHidde, includeHidden, startTime, results, visited, scanNode, _scanNode, rootNode, elapsed, _t63;
     return _regenerator().w(function (_context59) {
       while (1) switch (_context59.n) {
         case 0:
@@ -5981,7 +6074,7 @@ function _scanNodesWithOptions() {
                 _step15,
                 child,
                 _args58 = arguments,
-                _t60;
+                _t62;
               return _regenerator().w(function (_context58) {
                 while (1) switch (_context58.n) {
                   case 0:
@@ -6054,8 +6147,8 @@ function _scanNodesWithOptions() {
                     break;
                   case 10:
                     _context58.p = 10;
-                    _t60 = _context58.v;
-                    _iterator15.e(_t60);
+                    _t62 = _context58.v;
+                    _iterator15.e(_t62);
                   case 11:
                     _context58.p = 11;
                     _iterator15.f();
@@ -6111,8 +6204,8 @@ function _scanNodesWithOptions() {
           });
         case 6:
           _context59.p = 6;
-          _t61 = _context59.v;
-          if (!(_t61.message.includes('timed out') && returnPartialOnTimeout)) {
+          _t63 = _context59.v;
+          if (!(_t63.message.includes('timed out') && returnPartialOnTimeout)) {
             _context59.n = 7;
             break;
           }
@@ -6131,7 +6224,7 @@ function _scanNodesWithOptions() {
             }
           });
         case 7:
-          throw _t61;
+          throw _t63;
         case 8:
           return _context59.a(2);
       }
@@ -6164,7 +6257,7 @@ function executeBatch(_x53) {
 } // Helper function for getNodeInfo
 function _executeBatch() {
   _executeBatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee61(params) {
-    var _ref49, commands, _ref49$stopOnError, stopOnError, results, commandId, totalCount, i, _commands$i, command, cmdParams, result, _t62;
+    var _ref49, commands, _ref49$stopOnError, stopOnError, results, commandId, totalCount, i, _commands$i, command, cmdParams, result, _t64;
     return _regenerator().w(function (_context61) {
       while (1) switch (_context61.n) {
         case 0:
@@ -6201,12 +6294,12 @@ function _executeBatch() {
           break;
         case 5:
           _context61.p = 5;
-          _t62 = _context61.v;
+          _t64 = _context61.v;
           results.push({
             index: i,
             command: command,
             success: false,
-            error: _t62.message
+            error: _t64.message
           });
           if (!stopOnError) {
             _context61.n = 6;
@@ -6290,7 +6383,7 @@ function setTextStyleRange(_x55) {
 }
 function _setTextStyleRange() {
   _setTextStyleRange = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee63(params) {
-    var _ref50, nodeId, start, end, bold, italic, underline, strikethrough, node, fonts, decoration, currentFont, newStyle, newFont, _currentFont, _newStyle, _newFont, _t63, _t64, _t65;
+    var _ref50, nodeId, start, end, bold, italic, underline, strikethrough, node, fonts, decoration, currentFont, newStyle, newFont, _currentFont, _newStyle, _newFont, _t65, _t66, _t67;
     return _regenerator().w(function (_context63) {
       while (1) switch (_context63.n) {
         case 0:
@@ -6368,7 +6461,7 @@ function _setTextStyleRange() {
           break;
         case 9:
           _context63.p = 9;
-          _t63 = _context63.v;
+          _t65 = _context63.v;
           console.warn("Could not load ".concat(newFont.family, " ").concat(newFont.style, ", using font weight instead"));
           // Fallback to font weight if style not available
           node.setRangeFontWeight(start, end, bold ? 700 : 400);
@@ -6396,7 +6489,7 @@ function _setTextStyleRange() {
           break;
         case 13:
           _context63.p = 13;
-          _t64 = _context63.v;
+          _t66 = _context63.v;
           console.warn("Could not load ".concat(_newFont.family, " ").concat(_newFont.style));
         case 14:
           return _context63.a(2, {
@@ -6413,8 +6506,8 @@ function _setTextStyleRange() {
           });
         case 15:
           _context63.p = 15;
-          _t65 = _context63.v;
-          throw new Error("Failed to set text style: ".concat(_t65.message));
+          _t67 = _context63.v;
+          throw new Error("Failed to set text style: ".concat(_t67.message));
         case 16:
           return _context63.a(2);
       }
@@ -6427,7 +6520,7 @@ function getTextStyleRange(_x56) {
 }
 function _getTextStyleRange() {
   _getTextStyleRange = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee64(params) {
-    var _ref51, nodeId, start, end, node, decoration, fontName, fontWeight, styles, _t66;
+    var _ref51, nodeId, start, end, node, decoration, fontName, fontWeight, styles, _t68;
     return _regenerator().w(function (_context64) {
       while (1) switch (_context64.n) {
         case 0:
@@ -6493,8 +6586,8 @@ function _getTextStyleRange() {
           });
         case 6:
           _context64.p = 6;
-          _t66 = _context64.v;
-          throw new Error("Failed to get text style: ".concat(_t66.message));
+          _t68 = _context64.v;
+          throw new Error("Failed to get text style: ".concat(_t68.message));
         case 7:
           return _context64.a(2);
       }
@@ -6507,7 +6600,7 @@ function setTextDecorationRange(_x57) {
 }
 function _setTextDecorationRange() {
   _setTextDecorationRange = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee65(params) {
-    var _ref52, nodeId, start, end, style, color, thickness, offset, skipInk, node, fonts, _t67;
+    var _ref52, nodeId, start, end, style, color, thickness, offset, skipInk, node, fonts, _t69;
     return _regenerator().w(function (_context65) {
       while (1) switch (_context65.n) {
         case 0:
@@ -6587,8 +6680,8 @@ function _setTextDecorationRange() {
           });
         case 7:
           _context65.p = 7;
-          _t67 = _context65.v;
-          throw new Error("Failed to set text decoration: ".concat(_t67.message));
+          _t69 = _context65.v;
+          throw new Error("Failed to set text decoration: ".concat(_t69.message));
         case 8:
           return _context65.a(2);
       }
@@ -6601,7 +6694,7 @@ function getTextDecorationRange(_x58) {
 }
 function _getTextDecorationRange() {
   _getTextDecorationRange = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee66(params) {
-    var _ref53, nodeId, start, end, node, decoration, _t68;
+    var _ref53, nodeId, start, end, node, decoration, _t70;
     return _regenerator().w(function (_context66) {
       while (1) switch (_context66.n) {
         case 0:
@@ -6650,8 +6743,8 @@ function _getTextDecorationRange() {
           });
         case 6:
           _context66.p = 6;
-          _t68 = _context66.v;
-          throw new Error("Failed to get text decoration: ".concat(_t68.message));
+          _t70 = _context66.v;
+          throw new Error("Failed to get text decoration: ".concat(_t70.message));
         case 7:
           return _context66.a(2);
       }
@@ -6664,7 +6757,7 @@ function setRangeFont(_x59) {
 }
 function _setRangeFont() {
   _setRangeFont = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee67(params) {
-    var _ref54, nodeId, start, end, fontFamily, fontStyle, node, font, _t69;
+    var _ref54, nodeId, start, end, fontFamily, fontStyle, node, font, _t71;
     return _regenerator().w(function (_context67) {
       while (1) switch (_context67.n) {
         case 0:
@@ -6722,8 +6815,8 @@ function _setRangeFont() {
           });
         case 8:
           _context67.p = 8;
-          _t69 = _context67.v;
-          throw new Error("Failed to set font: ".concat(_t69.message));
+          _t71 = _context67.v;
+          throw new Error("Failed to set font: ".concat(_t71.message));
         case 9:
           return _context67.a(2);
       }
@@ -6736,7 +6829,7 @@ function setRangeFontSize(_x60) {
 }
 function _setRangeFontSize() {
   _setRangeFontSize = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee68(params) {
-    var _ref55, nodeId, start, end, fontSize, node, fonts, _t70;
+    var _ref55, nodeId, start, end, fontSize, node, fonts, _t72;
     return _regenerator().w(function (_context68) {
       while (1) switch (_context68.n) {
         case 0:
@@ -6794,8 +6887,8 @@ function _setRangeFontSize() {
           });
         case 8:
           _context68.p = 8;
-          _t70 = _context68.v;
-          throw new Error("Failed to set font size: ".concat(_t70.message));
+          _t72 = _context68.v;
+          throw new Error("Failed to set font size: ".concat(_t72.message));
         case 9:
           return _context68.a(2);
       }
@@ -6808,7 +6901,7 @@ function setRangeFills(_x61) {
 }
 function _setRangeFills() {
   _setRangeFills = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee69(params) {
-    var _ref56, nodeId, start, end, color, node, fonts, paint, _t71;
+    var _ref56, nodeId, start, end, color, node, fonts, paint, _t73;
     return _regenerator().w(function (_context69) {
       while (1) switch (_context69.n) {
         case 0:
@@ -6875,8 +6968,8 @@ function _setRangeFills() {
           });
         case 8:
           _context69.p = 8;
-          _t71 = _context69.v;
-          throw new Error("Failed to set text color: ".concat(_t71.message));
+          _t73 = _context69.v;
+          throw new Error("Failed to set text color: ".concat(_t73.message));
         case 9:
           return _context69.a(2);
       }
@@ -6889,7 +6982,7 @@ function getStyledTextSegments(_x62) {
 } // Component description functions
 function _getStyledTextSegments() {
   _getStyledTextSegments = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee70(params) {
-    var _ref57, nodeId, fields, start, end, node, segments, _t72;
+    var _ref57, nodeId, fields, start, end, node, segments, _t74;
     return _regenerator().w(function (_context70) {
       while (1) switch (_context70.n) {
         case 0:
@@ -6932,8 +7025,8 @@ function _getStyledTextSegments() {
           });
         case 6:
           _context70.p = 6;
-          _t72 = _context70.v;
-          throw new Error("Failed to get styled text segments: ".concat(_t72.message));
+          _t74 = _context70.v;
+          throw new Error("Failed to get styled text segments: ".concat(_t74.message));
         case 7:
           return _context70.a(2);
       }
@@ -6946,7 +7039,7 @@ function setComponentDescription(_x63) {
 }
 function _setComponentDescription() {
   _setComponentDescription = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee71(params) {
-    var _ref58, nodeId, descriptionMarkdown, node, normalized, _t73;
+    var _ref58, nodeId, descriptionMarkdown, node, normalized, _t75;
     return _regenerator().w(function (_context71) {
       while (1) switch (_context71.n) {
         case 0:
@@ -6991,8 +7084,8 @@ function _setComponentDescription() {
           });
         case 6:
           _context71.p = 6;
-          _t73 = _context71.v;
-          throw new Error("Failed to set component description: ".concat(_t73.message));
+          _t75 = _context71.v;
+          throw new Error("Failed to set component description: ".concat(_t75.message));
         case 7:
           return _context71.a(2);
       }
@@ -7047,7 +7140,7 @@ function normalizeMarkdown(_x65) {
 } // Function to generate simple UUIDs for command IDs
 function _normalizeMarkdown() {
   _normalizeMarkdown = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee73(params) {
-    var _ref60, markdown, normalized, _t74;
+    var _ref60, markdown, normalized, _t76;
     return _regenerator().w(function (_context73) {
       while (1) switch (_context73.n) {
         case 0:
@@ -7067,8 +7160,8 @@ function _normalizeMarkdown() {
           });
         case 2:
           _context73.p = 2;
-          _t74 = _context73.v;
-          throw new Error("Failed to normalize markdown: ".concat(_t74.message));
+          _t76 = _context73.v;
+          throw new Error("Failed to normalize markdown: ".concat(_t76.message));
         case 3:
           return _context73.a(2);
       }
@@ -7084,7 +7177,7 @@ function getAnnotations(_x66) {
 }
 function _getAnnotations() {
   _getAnnotations = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee75(params) {
-    var nodeId, _params$includeCatego, includeCategories, categoriesMap, categories, node, result, annotations, _processNode, _result, _t76;
+    var nodeId, _params$includeCatego, includeCategories, categoriesMap, categories, node, result, annotations, _processNode, _result, _t78;
     return _regenerator().w(function (_context75) {
       while (1) switch (_context75.n) {
         case 0:
@@ -7143,7 +7236,7 @@ function _getAnnotations() {
           annotations = [];
           _processNode = /*#__PURE__*/function () {
             var _ref61 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee74(node) {
-              var _iterator16, _step16, child, _t75;
+              var _iterator16, _step16, child, _t77;
               return _regenerator().w(function (_context74) {
                 while (1) switch (_context74.n) {
                   case 0:
@@ -7177,8 +7270,8 @@ function _getAnnotations() {
                     break;
                   case 5:
                     _context74.p = 5;
-                    _t75 = _context74.v;
-                    _iterator16.e(_t75);
+                    _t77 = _context74.v;
+                    _iterator16.e(_t77);
                   case 6:
                     _context74.p = 6;
                     _iterator16.f();
@@ -7207,9 +7300,9 @@ function _getAnnotations() {
           break;
         case 9:
           _context75.p = 9;
-          _t76 = _context75.v;
-          console.error("Error in getAnnotations:", _t76);
-          throw _t76;
+          _t78 = _context75.v;
+          console.error("Error in getAnnotations:", _t78);
+          throw _t78;
         case 10:
           return _context75.a(2);
       }
@@ -7229,7 +7322,7 @@ function setAnnotation(_x67) {
  */
 function _setAnnotation() {
   _setAnnotation = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee76(params) {
-    var nodeId, annotationId, labelMarkdown, categoryId, properties, node, newAnnotation, _t77;
+    var nodeId, annotationId, labelMarkdown, categoryId, properties, node, newAnnotation, _t79;
     return _regenerator().w(function (_context76) {
       while (1) switch (_context76.n) {
         case 0:
@@ -7326,16 +7419,16 @@ function _setAnnotation() {
           });
         case 6:
           _context76.p = 6;
-          _t77 = _context76.v;
+          _t79 = _context76.v;
           console.error("=== setAnnotation Error ===");
           console.error("Error details:", {
-            message: _t77.message,
-            stack: _t77.stack,
+            message: _t79.message,
+            stack: _t79.stack,
             params: JSON.stringify(params, null, 2)
           });
           return _context76.a(2, {
             success: false,
-            error: _t77.message
+            error: _t79.message
           });
       }
     }, _callee76, null, [[0, 6]]);
@@ -7410,7 +7503,7 @@ function _findNodesByTypes() {
       _step17,
       child,
       _args78 = arguments,
-      _t78;
+      _t80;
     return _regenerator().w(function (_context78) {
       while (1) switch (_context78.n) {
         case 0:
@@ -7462,8 +7555,8 @@ function _findNodesByTypes() {
           break;
         case 6:
           _context78.p = 6;
-          _t78 = _context78.v;
-          _iterator17.e(_t78);
+          _t80 = _context78.v;
+          _iterator17.e(_t80);
         case 7:
           _context78.p = 7;
           _iterator17.f();
@@ -7480,7 +7573,7 @@ function setMultipleAnnotations(_x71) {
 }
 function _setMultipleAnnotations() {
   _setMultipleAnnotations = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee79(params) {
-    var nodeId, annotations, results, successCount, failureCount, i, annotation, result, errorResult, summary, _t79;
+    var nodeId, annotations, results, successCount, failureCount, i, annotation, result, errorResult, summary, _t81;
     return _regenerator().w(function (_context79) {
       while (1) switch (_context79.n) {
         case 0:
@@ -7546,18 +7639,18 @@ function _setMultipleAnnotations() {
           break;
         case 5:
           _context79.p = 5;
-          _t79 = _context79.v;
+          _t81 = _context79.v;
           failureCount++;
           errorResult = {
             success: false,
             nodeId: annotation.nodeId,
-            error: _t79.message
+            error: _t81.message
           };
           results.push(errorResult);
-          console.error("\u2717 Annotation ".concat(i + 1, " failed with error:"), _t79);
+          console.error("\u2717 Annotation ".concat(i + 1, " failed with error:"), _t81);
           console.error("Error details:", {
-            message: _t79.message,
-            stack: _t79.stack
+            message: _t81.message,
+            stack: _t81.stack
           });
         case 6:
           i++;
@@ -7645,7 +7738,7 @@ function _deleteMultipleNodes() {
           // Process deletions within a chunk in parallel
           chunkPromises = chunk.map(/*#__PURE__*/function () {
             var _ref64 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee80(nodeId) {
-              var node, nodeInfo, _t80;
+              var node, nodeInfo, _t82;
               return _regenerator().w(function (_context80) {
                 while (1) switch (_context80.n) {
                   case 0:
@@ -7680,12 +7773,12 @@ function _deleteMultipleNodes() {
                     });
                   case 3:
                     _context80.p = 3;
-                    _t80 = _context80.v;
-                    console.error("Error deleting node ".concat(nodeId, ": ").concat(_t80.message));
+                    _t82 = _context80.v;
+                    console.error("Error deleting node ".concat(nodeId, ": ").concat(_t82.message));
                     return _context80.a(2, {
                       success: false,
                       nodeId: nodeId,
-                      error: _t80.message
+                      error: _t82.message
                     });
                 }
               }, _callee80, null, [[0, 3]]);
@@ -7772,7 +7865,7 @@ function _getInstanceOverrides() {
       mainComponent,
       returnData,
       _args82 = arguments,
-      _t81;
+      _t83;
     return _regenerator().w(function (_context82) {
       while (1) switch (_context82.n) {
         case 0:
@@ -7872,12 +7965,12 @@ function _getInstanceOverrides() {
           return _context82.a(2, returnData);
         case 8:
           _context82.p = 8;
-          _t81 = _context82.v;
-          console.error("Error in getInstanceOverrides:", _t81);
-          figma.notify("Error: ".concat(_t81.message));
+          _t83 = _context82.v;
+          console.error("Error in getInstanceOverrides:", _t83);
+          figma.notify("Error: ".concat(_t83.message));
           return _context82.a(2, {
             success: false,
-            message: "Error: ".concat(_t81.message)
+            message: "Error: ".concat(_t83.message)
           });
       }
     }, _callee82, null, [[5, 8]]);
@@ -7894,7 +7987,7 @@ function getValidTargetInstances(_x73) {
  */
 function _getValidTargetInstances() {
   _getValidTargetInstances = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee83(targetNodeIds) {
-    var targetInstances, _iterator18, _step18, targetNodeId, targetNode, _t82;
+    var targetInstances, _iterator18, _step18, targetNodeId, targetNode, _t84;
     return _regenerator().w(function (_context83) {
       while (1) switch (_context83.n) {
         case 0:
@@ -7936,8 +8029,8 @@ function _getValidTargetInstances() {
           break;
         case 7:
           _context83.p = 7;
-          _t82 = _context83.v;
-          _iterator18.e(_t82);
+          _t84 = _context83.v;
+          _iterator18.e(_t84);
         case 8:
           _context83.p = 8;
           _iterator18.f();
@@ -8045,7 +8138,7 @@ function setInstanceOverrides(_x75, _x76) {
 }
 function _setInstanceOverrides() {
   _setInstanceOverrides = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee85(targetInstances, sourceResult) {
-    var sourceInstance, mainComponent, overrides, _results, totalAppliedCount, _iterator19, _step19, targetInstance, appliedCount, _iterator20, _step20, override, overrideNodeId, overrideNode, sourceNode, fieldApplied, _iterator21, _step21, field, properties, key, instanceCount, message, _message, _message2, _t83, _t84, _t85, _t86, _t87, _t88;
+    var sourceInstance, mainComponent, overrides, _results, totalAppliedCount, _iterator19, _step19, targetInstance, appliedCount, _iterator20, _step20, override, overrideNodeId, overrideNode, sourceNode, fieldApplied, _iterator21, _step21, field, properties, key, instanceCount, message, _message, _message2, _t85, _t86, _t87, _t88, _t89, _t90;
     return _regenerator().w(function (_context85) {
       while (1) switch (_context85.n) {
         case 0:
@@ -8190,8 +8283,8 @@ function _setInstanceOverrides() {
           break;
         case 18:
           _context85.p = 18;
-          _t83 = _context85.v;
-          console.error("Error applying field ".concat(field, ":"), _t83);
+          _t85 = _context85.v;
+          console.error("Error applying field ".concat(field, ":"), _t85);
         case 19:
           _context85.n = 12;
           break;
@@ -8200,8 +8293,8 @@ function _setInstanceOverrides() {
           break;
         case 21:
           _context85.p = 21;
-          _t84 = _context85.v;
-          _iterator21.e(_t84);
+          _t86 = _context85.v;
+          _iterator21.e(_t86);
         case 22:
           _context85.p = 22;
           _iterator21.f();
@@ -8218,8 +8311,8 @@ function _setInstanceOverrides() {
           break;
         case 26:
           _context85.p = 26;
-          _t85 = _context85.v;
-          _iterator20.e(_t85);
+          _t87 = _context85.v;
+          _iterator20.e(_t87);
         case 27:
           _context85.p = 27;
           _iterator20.f();
@@ -8246,13 +8339,13 @@ function _setInstanceOverrides() {
           break;
         case 29:
           _context85.p = 29;
-          _t86 = _context85.v;
-          console.error("Error processing instance \"".concat(targetInstance.name, "\":"), _t86);
+          _t88 = _context85.v;
+          console.error("Error processing instance \"".concat(targetInstance.name, "\":"), _t88);
           _results.push({
             success: false,
             instanceId: targetInstance.id,
             instanceName: targetInstance.name,
-            message: "Error: ".concat(_t86.message)
+            message: "Error: ".concat(_t88.message)
           });
         case 30:
           _context85.n = 2;
@@ -8262,8 +8355,8 @@ function _setInstanceOverrides() {
           break;
         case 32:
           _context85.p = 32;
-          _t87 = _context85.v;
-          _iterator19.e(_t87);
+          _t89 = _context85.v;
+          _iterator19.e(_t89);
         case 33:
           _context85.p = 33;
           _iterator19.f();
@@ -8297,9 +8390,9 @@ function _setInstanceOverrides() {
           break;
         case 37:
           _context85.p = 37;
-          _t88 = _context85.v;
-          console.error("Error in setInstanceOverrides:", _t88);
-          _message2 = "Error: ".concat(_t88.message);
+          _t90 = _context85.v;
+          console.error("Error in setInstanceOverrides:", _t90);
+          _message2 = "Error: ".concat(_t90.message);
           figma.notify(_message2);
           return _context85.a(2, {
             success: false,
@@ -8632,7 +8725,7 @@ function setDefaultConnector(_x82) {
 }
 function _setDefaultConnector() {
   _setDefaultConnector = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee91(params) {
-    var _ref70, connectorId, node, existingConnectorId, existingConnector, currentPageConnectors, foundConnector, autoFoundId, _t89, _t90, _t91;
+    var _ref70, connectorId, node, existingConnectorId, existingConnector, currentPageConnectors, foundConnector, autoFoundId, _t91, _t92, _t93;
     return _regenerator().w(function (_context91) {
       while (1) switch (_context91.n) {
         case 0:
@@ -8697,15 +8790,15 @@ function _setDefaultConnector() {
           break;
         case 11:
           _context91.p = 11;
-          _t89 = _context91.v;
-          console.log("Error finding stored connector: ".concat(_t89.message, ". Will try to set a new one."));
+          _t91 = _context91.v;
+          console.log("Error finding stored connector: ".concat(_t91.message, ". Will try to set a new one."));
         case 12:
           _context91.n = 14;
           break;
         case 13:
           _context91.p = 13;
-          _t90 = _context91.v;
-          console.log("Error checking for existing connector: ".concat(_t90.message));
+          _t92 = _context91.v;
+          console.log("Error checking for existing connector: ".concat(_t92.message));
         case 14:
           _context91.p = 14;
           // Find CONNECTOR type nodes in the current page
@@ -8735,8 +8828,8 @@ function _setDefaultConnector() {
           break;
         case 18:
           _context91.p = 18;
-          _t91 = _context91.v;
-          throw new Error("Failed to find a connector: ".concat(_t91.message));
+          _t93 = _context91.v;
+          throw new Error("Failed to find a connector: ".concat(_t93.message));
         case 19:
           return _context91.a(2);
       }
@@ -8749,7 +8842,7 @@ function createCursorNode(_x83) {
 }
 function _createCursorNode() {
   _createCursorNode = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee92(targetNodeId) {
-    var svgString, targetNode, parentNodeId, parentNode, importedNode, cursorNode, _t92;
+    var svgString, targetNode, parentNodeId, parentNode, importedNode, cursorNode, _t94;
     return _regenerator().w(function (_context92) {
       while (1) switch (_context92.n) {
         case 0:
@@ -8891,12 +8984,12 @@ function _createCursorNode() {
           });
         case 10:
           _context92.p = 10;
-          _t92 = _context92.v;
-          console.error("Error creating cursor from SVG:", _t92);
+          _t94 = _context92.v;
+          console.error("Error creating cursor from SVG:", _t94);
           return _context92.a(2, {
             id: null,
             node: null,
-            error: _t92.message
+            error: _t94.message
           });
       }
     }, _callee92, null, [[1, 10]]);
@@ -8908,7 +9001,7 @@ function createConnections(_x84) {
 }
 function _createConnections() {
   _createConnections = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee93(params) {
-    var connections, commandId, defaultConnectorId, defaultConnector, results, processedCount, totalCount, fontLoaded, i, _connections$i, originalStartId, originalEndId, text, startId, endId, cursorResult, startNode, _cursorResult, endNode, clonedConnector, fontName, _t93, _t94, _t95, _t96, _t97;
+    var connections, commandId, defaultConnectorId, defaultConnector, results, processedCount, totalCount, fontLoaded, i, _connections$i, originalStartId, originalEndId, text, startId, endId, cursorResult, startNode, _cursorResult, endNode, clonedConnector, fontName, _t95, _t96, _t97, _t98, _t99;
     return _regenerator().w(function (_context93) {
       while (1) switch (_context93.n) {
         case 0:
@@ -9061,7 +9154,7 @@ function _createConnections() {
           break;
         case 24:
           _context93.p = 24;
-          _t93 = _context93.v;
+          _t95 = _context93.v;
           _context93.p = 25;
           _context93.n = 26;
           return figma.loadFontAsync({
@@ -9073,7 +9166,7 @@ function _createConnections() {
           break;
         case 27:
           _context93.p = 27;
-          _t94 = _context93.v;
+          _t96 = _context93.v;
           _context93.p = 28;
           _context93.n = 29;
           return figma.loadFontAsync({
@@ -9085,8 +9178,8 @@ function _createConnections() {
           break;
         case 30:
           _context93.p = 30;
-          _t95 = _context93.v;
-          throw new Error("Failed to load any font: ".concat(_t93.message));
+          _t97 = _context93.v;
+          throw new Error("Failed to load any font: ".concat(_t95.message));
         case 31:
           // Set the text
           clonedConnector.text.characters = text;
@@ -9094,15 +9187,15 @@ function _createConnections() {
           break;
         case 32:
           _context93.p = 32;
-          _t96 = _context93.v;
-          console.error("Error setting text:", _t96);
+          _t98 = _context93.v;
+          console.error("Error setting text:", _t98);
           // Continue with connection even if text setting fails
           results.push({
             id: clonedConnector.id,
             startNodeId: startNodeId,
             endNodeId: endNodeId,
             text: "",
-            textError: _t96.message
+            textError: _t98.message
           });
 
           // Continue to next connection
@@ -9127,13 +9220,13 @@ function _createConnections() {
           break;
         case 34:
           _context93.p = 34;
-          _t97 = _context93.v;
-          console.error("Error creating connection", _t97);
+          _t99 = _context93.v;
+          console.error("Error creating connection", _t99);
           // Continue processing remaining connections even if an error occurs
           processedCount++;
-          sendProgressUpdate(commandId, "create_connections", "in_progress", processedCount / totalCount, totalCount, processedCount, "Error creating connection: ".concat(_t97.message));
+          sendProgressUpdate(commandId, "create_connections", "in_progress", processedCount / totalCount, totalCount, processedCount, "Error creating connection: ".concat(_t99.message));
           results.push({
-            error: _t97.message,
+            error: _t99.message,
             connectionInfo: connections[i]
           });
         case 35:

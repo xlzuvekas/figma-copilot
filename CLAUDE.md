@@ -10,6 +10,26 @@ This is a Model Context Protocol (MCP) integration that enables AI assistants (C
 2. **WebSocket Server** (`src/socket.ts`) - Message relay between MCP server and Figma plugin (port 3055)
 3. **Figma Plugin** (`src/figma_copilot_plugin/`) - Runs inside Figma/FigJam to execute API commands
 
+## Project Structure
+
+```
+cursor-talk-to-figma-mcp/
+├── src/
+│   ├── figma_copilot_plugin/
+│   │   ├── code.js              # Main plugin logic (ES6+)
+│   │   ├── code.transpiled.js   # Transpiled for Figma (ES5)
+│   │   ├── ui.html              # Plugin UI
+│   │   └── manifest.json        # Plugin configuration
+│   ├── talk_to_figma_mcp/
+│   │   └── server.ts            # MCP server implementation
+│   └── socket.ts                # WebSocket relay server
+├── scripts/
+│   └── setup.sh                 # Initial setup script
+├── package.json                 # Project dependencies
+├── tsconfig.json                # TypeScript configuration
+└── CLAUDE.md                    # This file
+```
+
 ## Development Commands
 
 ```bash
@@ -84,3 +104,62 @@ hostname: "0.0.0.0",
 - All Figma operations are synchronous within the plugin but async through WebSocket
 - Progress updates use CommandProgressUpdate interface for long-running operations
 - Component instance overrides use specialized interfaces for type safety
+
+## Code Style Guidelines
+
+### TypeScript/JavaScript
+- Use TypeScript for server-side code (MCP server, WebSocket server)
+- Use JavaScript (ES5) for Figma plugin code due to Figma's runtime constraints
+- Always include proper error handling with try-catch blocks
+- Use async/await for asynchronous operations
+- Prefer const over let, avoid var
+- Use meaningful variable and function names
+
+### Error Handling
+- Always validate input parameters in MCP tool handlers
+- Return descriptive error messages that help users understand what went wrong
+- Log errors to console for debugging but don't expose internal details to users
+- Handle WebSocket disconnections gracefully
+
+### Testing Changes
+- Test MCP server changes by running `bun run dev` and monitoring console output
+- Test WebSocket server changes by checking connections in browser console
+- Test Figma plugin changes by reloading plugin in Figma after building
+- Always test error scenarios (invalid inputs, disconnections, etc.)
+
+## Common Issues and Solutions
+
+### WebSocket Connection Issues
+- Ensure port 3055 is not in use by another process
+- Check firewall settings if connection is blocked
+- Verify WebSocket server is running before connecting plugin
+
+### Figma Plugin Development
+- Always transpile code to ES5 before testing in Figma
+- Check Figma console for runtime errors
+- Ensure manifest.json has correct permissions
+- Remember that Figma plugin runs in a sandboxed environment
+
+### MCP Tool Development
+- Follow the existing pattern in server.ts for consistency
+- Include comprehensive descriptions for each tool
+- Validate all required parameters
+- Return consistent response formats
+
+## DO NOT Guidelines
+
+- DO NOT modify the WebSocket port (3055) without updating all references
+- DO NOT use ES6+ features in Figma plugin code without transpiling
+- DO NOT expose sensitive information in error messages
+- DO NOT make breaking changes to existing MCP tool interfaces
+- DO NOT commit node_modules or dist directories
+- DO NOT hardcode environment-specific values
+
+## Best Practices
+
+1. **Backward Compatibility**: Maintain compatibility with existing tool interfaces
+2. **Documentation**: Update this file when adding new features or changing architecture
+3. **Error Messages**: Provide actionable error messages that guide users to solutions
+4. **Performance**: Use batch operations for bulk updates to improve performance
+5. **Security**: Never expose internal server details or file paths in responses
+6. **Testing**: Test all changes thoroughly before committing
