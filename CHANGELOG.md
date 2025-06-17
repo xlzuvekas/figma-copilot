@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-01-17
+
+### 🐛 Bug Fixes
+
+- Added missing Figma plugin handlers for all new unified APIs introduced in v0.4.0
+- The plugin now properly supports:
+  - `get_nodes` - Unified node information retrieval
+  - `get_current_context` - Combined context information
+  - `extract_slide_content` - Slide content extraction
+  - `get_presentation_summary` - Presentation overview generation
+  - `get_table_data` - Table data extraction
+
+### 📝 Notes
+
+Version 0.4.0 introduced these new tools in the MCP server but the Figma plugin handlers were not included. This patch release adds full plugin support, making all v0.4.0 features functional.
+
 ## [0.4.0] - 2025-01-17
 
 ### 🚀 Major Performance and API Improvements
