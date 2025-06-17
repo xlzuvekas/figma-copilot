@@ -293,6 +293,16 @@ async function handleCommand(command, params) {
       return await getConnectionStatus(params);
     case "execute_batch":
       return await executeBatch(params);
+    case "get_nodes":
+      return await getNodes(params);
+    case "get_current_context":
+      return await getCurrentContext(params);
+    case "extract_slide_content":
+      return await extractSlideContent(params);
+    case "get_presentation_summary":
+      return await getPresentationSummary(params);
+    case "get_table_data":
+      return await getTableData(params);
     default:
       throw new Error(`Unknown command: ${command}`);
   }
@@ -6663,4 +6673,438 @@ async function createConnections(params) {
     count: results.length,
     connections: results
   };
+}
+
+// New unified API handlers
+
+async function getNodes(params) {
+  const { nodeIds, includeChildren = true, maxDepth = -1 } = params || {};
+  
+  // Handle both single nodeId string and array of nodeIds
+  const ids = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
+  
+  if (!ids || ids.length === 0) {
+    throw new Error("Missing nodeIds parameter");
+  }
+  
+  // For single node, use getNodeInfo for efficiency
+  if (ids.length === 1) {
+    const nodeInfo = await getNodeInfo(ids[0]);
+    return {
+      success: true,
+      nodes: [nodeInfo],
+      includeChildren,
+      maxDepth
+    };
+  }
+  
+  // For multiple nodes, use getMultipleNodesInfo
+  const result = await getMultipleNodesInfo({ nodeIds: ids });
+  return {
+    success: result.success,
+    nodes: result.results.filter(r => r.success).map(r => r.info),
+    totalFound: result.totalFound,
+    totalNotFound: result.totalNotFound,
+    includeChildren,
+    maxDepth
+  };
+}
+
+async function getCurrentContext(params) {
+  const { includeDocument = false, includeSlideDetails = true, includeSelectionDetails = false } = params || {};
+  
+  const context = {
+    selection: null,
+    focusedSlide: null,
+    slidesMode: false,
+    document: null
+  };
+  
+  // Get selection
+  try {
+    const selection = await getSelection();
+    context.selection = selection;
+    
+    if (includeSelectionDetails && selection.selectedNodes && selection.selectedNodes.length > 0) {
+      // Get detailed info for selected nodes
+      const nodeIds = selection.selectedNodes.map(n => n.id);
+      const nodesInfo = await getMultipleNodesInfo({ nodeIds });
+      context.selectionDetails = nodesInfo.results;
+    }
+  } catch (error) {
+    context.selection = { error: error.message };
+  }
+  
+  // Check if in Slides mode
+  try {
+    const slidesMode = await getSlidesMode();
+    context.slidesMode = slidesMode.inSlidesMode;
+    
+    if (slidesMode.inSlidesMode && includeSlideDetails) {
+      // Get focused slide
+      try {
+        const focusedSlide = await getFocusedSlide();
+        context.focusedSlide = focusedSlide;
+      } catch (error) {
+        context.focusedSlide = { error: error.message };
+      }
+    }
+  } catch (error) {
+    // Not in slides mode
+  }
+  
+  // Get document info if requested
+  if (includeDocument) {
+    try {
+      const docInfo = await getDocumentInfo();
+      context.document = docInfo;
+    } catch (error) {
+      context.document = { error: error.message };
+    }
+  }
+  
+  return context;
+}
+
+async function extractSlideContent(params) {
+  const { slideId, includeImages = false, outputFormat = "structured", textOnly = false } = params || {};
+  
+  if (!slideId) {
+    throw new Error("Missing slideId parameter");
+  }
+  
+  const content = {
+    slideId,
+    text: [],
+    tables: [],
+    images: [],
+    metadata: {}
+  };
+  
+  // Get slide info
+  const slideInfo = await getNodeInfo(slideId);
+  if (!slideInfo || slideInfo.type !== "SLIDE") {
+    throw new Error("Node is not a slide");
+  }
+  
+  content.metadata = {
+    name: slideInfo.name || "",
+    width: slideInfo.width || 0,
+    height: slideInfo.height || 0
+  };
+  
+  // Scan for content nodes
+  const scanOptions = {
+    maxDepth: -1,
+    nodeTypes: textOnly ? ["TEXT"] : ["TEXT", "TABLE", "RECTANGLE", "FRAME"],
+    timeout: 10000,
+    returnPartialOnTimeout: true
+  };
+  
+  const scanResult = await scanNodesWithOptions({
+    nodeId: slideId,
+    options: scanOptions
+  });
+  
+  if (scanResult.nodes && scanResult.nodes.length > 0) {
+    for (const node of scanResult.nodes) {
+      if (node.type === "TEXT" && node.characters) {
+        content.text.push({
+          id: node.id,
+          text: node.characters,
+          name: node.name
+        });
+      } else if (node.type === "TABLE" && !textOnly) {
+        // Get table data
+        try {
+          const tableData = await getTableData({ 
+            tableId: node.id, 
+            outputFormat: "array",
+            includeHeaders: true 
+          });
+          if (tableData.data) {
+            content.tables.push({
+              id: node.id,
+              name: node.name,
+              data: tableData.data
+            });
+          }
+        } catch (error) {
+          // Continue with partial results
+        }
+      } else if ((node.type === "RECTANGLE" || node.type === "FRAME") && includeImages && !textOnly) {
+        if (node.name && (node.name.toLowerCase().includes("image") || node.name.toLowerCase().includes("img"))) {
+          content.images.push({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            bounds: node.absoluteBoundingBox
+          });
+        }
+      }
+    }
+  }
+  
+  // Format output
+  if (outputFormat === "raw") {
+    const rawText = content.text.map(t => t.text).join("\n\n");
+    const tableText = content.tables.map(t => 
+      `Table: ${t.name}\n${formatTableAsText(t.data)}`
+    ).join("\n\n");
+    
+    return [rawText, tableText].filter(Boolean).join("\n\n");
+  } else {
+    return content;
+  }
+}
+
+async function getPresentationSummary(params) {
+  const { includeOutline = true, maxTextPreview = 200, includeEmptySlides = false } = params || {};
+  
+  // Check if in slides mode
+  const slidesMode = await getSlidesMode();
+  if (!slidesMode.inSlidesMode) {
+    throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
+  }
+  
+  // Get document info
+  const docInfo = await getDocumentInfo();
+  const slidesNode = docInfo.children?.find(child => child.type === "SLIDES");
+  
+  if (!slidesNode || !slidesNode.children) {
+    throw new Error("No slides found in the presentation");
+  }
+  
+  const slides = slidesNode.children.filter(child => child.type === "SLIDE");
+  const summary = {
+    presentationName: docInfo.name || "Untitled Presentation",
+    totalSlides: slides.length,
+    focusedSlideId: slidesMode.currentSlideId || null,
+    slides: []
+  };
+  
+  // Process each slide
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    const slideInfo = {
+      index: i + 1,
+      id: slide.id,
+      title: slide.name || `Slide ${i + 1}`,
+      hasContent: false
+    };
+    
+    if (includeOutline) {
+      try {
+        // Get content from slide
+        const scanResult = await scanNodesWithOptions({
+          nodeId: slide.id,
+          options: {
+            maxDepth: 3,
+            nodeTypes: ["TEXT"],
+            timeout: 2000,
+            returnPartialOnTimeout: true
+          }
+        });
+        
+        if (scanResult.nodes && scanResult.nodes.length > 0) {
+          slideInfo.hasContent = true;
+          
+          const textNodes = scanResult.nodes.filter(node => node.characters);
+          const allText = textNodes.map(node => node.characters).join(" ");
+          
+          if (allText.trim()) {
+            slideInfo.keyPoints = [];
+            
+            // Look for bullet points or numbered lists
+            const bulletMatches = allText.match(/[•·\-*]\s*([^\n•·\-*]+)/g);
+            const numberMatches = allText.match(/\d+\.\s*([^\n]+)/g);
+            
+            if (bulletMatches || numberMatches) {
+              const points = [...(bulletMatches || []), ...(numberMatches || [])]
+                .map(point => point.replace(/^[•·\-*\d.]\s*/, '').trim())
+                .filter(point => point.length > 5)
+                .slice(0, 5);
+              
+              if (points.length > 0) {
+                slideInfo.keyPoints = points;
+              }
+            }
+            
+            if (slideInfo.keyPoints.length === 0) {
+              const preview = allText.substring(0, maxTextPreview).trim();
+              if (preview) {
+                slideInfo.textPreview = preview + (allText.length > maxTextPreview ? "..." : "");
+              }
+            }
+            
+            slideInfo.contentStats = {
+              textNodes: textNodes.length,
+              totalCharacters: allText.length
+            };
+          }
+        }
+      } catch (error) {
+        slideInfo.scanError = true;
+      }
+    }
+    
+    if (slideInfo.hasContent || includeEmptySlides) {
+      summary.slides.push(slideInfo);
+    }
+  }
+  
+  // Generate executive summary
+  if (includeOutline) {
+    const slidesWithContent = summary.slides.filter(s => s.hasContent);
+    summary.executiveSummary = {
+      slidesWithContent: slidesWithContent.length,
+      emptySlides: slides.length - slidesWithContent.length,
+      averageContentPerSlide: slidesWithContent.length > 0 
+        ? Math.round(slidesWithContent.reduce((sum, slide) => 
+            sum + (slide.contentStats?.totalCharacters || 0), 0) / slidesWithContent.length)
+        : 0
+    };
+  }
+  
+  return summary;
+}
+
+async function getTableData(params) {
+  const { tableId, outputFormat = "array", includeHeaders = true, headerRow = 0, cleanEmptyCells = true } = params || {};
+  
+  if (!tableId) {
+    throw new Error("Missing tableId parameter");
+  }
+  
+  // Get table node
+  const tableInfo = await getNodeInfo(tableId);
+  
+  if (!tableInfo || tableInfo.type !== "TABLE") {
+    throw new Error("Node is not a table");
+  }
+  
+  // Extract cells
+  const cells = tableInfo.children?.filter(child => child.type === "TABLE_CELL") || [];
+  
+  if (cells.length === 0) {
+    return {
+      metadata: {
+        tableId,
+        tableName: tableInfo.name || "Untitled Table",
+        rows: 0,
+        columns: 0,
+        totalCells: 0,
+        format: outputFormat
+      },
+      data: outputFormat === "csv" ? "" : []
+    };
+  }
+  
+  // Parse cells into 2D array
+  const rows = [];
+  let maxRow = 0;
+  let maxCol = 0;
+  
+  cells.forEach(cell => {
+    // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+    const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+    if (match) {
+      const row = parseInt(match[1]);
+      const col = parseInt(match[2]);
+      maxRow = Math.max(maxRow, row);
+      maxCol = Math.max(maxCol, col);
+      
+      if (!rows[row]) rows[row] = [];
+      rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+    }
+  });
+  
+  // Fill missing cells
+  for (let r = 0; r <= maxRow; r++) {
+    if (!rows[r]) rows[r] = [];
+    for (let c = 0; c <= maxCol; c++) {
+      if (rows[r][c] === undefined) rows[r][c] = "";
+    }
+  }
+  
+  // Clean empty rows
+  let finalRows = rows.filter(row => row && row.some(cell => cell !== ""));
+  
+  // Process based on output format
+  let result;
+  let headers = [];
+  
+  if (includeHeaders && finalRows.length > headerRow) {
+    headers = finalRows[headerRow].map((h, idx) => String(h).trim() || `Column${idx + 1}`);
+  }
+  
+  switch (outputFormat) {
+    case "object":
+      if (includeHeaders && headers.length > 0) {
+        const dataRows = finalRows.slice(headerRow + 1);
+        result = dataRows.map(row => {
+          const obj = {};
+          headers.forEach((header, index) => {
+            const value = row[index] || "";
+            if (!cleanEmptyCells || value !== "") {
+              obj[header] = value;
+            }
+          });
+          return obj;
+        });
+      } else {
+        result = finalRows.map(row => {
+          const obj = {};
+          row.forEach((cell, index) => {
+            if (!cleanEmptyCells || cell !== "") {
+              obj[`col${index + 1}`] = cell;
+            }
+          });
+          return obj;
+        });
+      }
+      break;
+      
+    case "csv":
+      const csvRows = finalRows.map(row => 
+        row.map(cell => {
+          const cellStr = String(cell);
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            return '"' + cellStr.replace(/"/g, '""') + '"';
+          }
+          return cellStr;
+        }).join(',')
+      );
+      result = csvRows.join('\n');
+      break;
+      
+    case "array":
+    default:
+      result = cleanEmptyCells 
+        ? finalRows.map(row => row.filter(cell => cell !== ""))
+        : finalRows;
+      break;
+  }
+  
+  return {
+    metadata: {
+      tableId,
+      tableName: tableInfo.name || "Untitled Table",
+      rows: finalRows.length,
+      columns: maxCol + 1,
+      totalCells: cells.length,
+      format: outputFormat
+    },
+    headers: includeHeaders ? headers : undefined,
+    data: result
+  };
+}
+
+// Helper function for table formatting
+function formatTableAsText(data) {
+  if (!data || data.length === 0) return "";
+  
+  return data.map(row => 
+    row.map(cell => cell || "").join(" | ")
+  ).join("\n");
 }

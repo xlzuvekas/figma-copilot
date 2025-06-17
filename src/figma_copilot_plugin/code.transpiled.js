@@ -146,7 +146,7 @@ function _handleCommand() {
       while (1) switch (_context7.n) {
         case 0:
           _t6 = command;
-          _context7.n = _t6 === "get_document_info" ? 1 : _t6 === "get_selection" ? 3 : _t6 === "get_node_info" ? 5 : _t6 === "get_nodes_info" ? 8 : _t6 === "read_my_design" ? 11 : _t6 === "create_rectangle" ? 13 : _t6 === "create_frame" ? 15 : _t6 === "create_slide" ? 17 : _t6 === "create_slide_row" ? 19 : _t6 === "set_slide_grid" ? 21 : _t6 === "get_focused_slide" ? 23 : _t6 === "get_slide_transition" ? 25 : _t6 === "set_slide_transition" ? 27 : _t6 === "get_slides_mode" ? 29 : _t6 === "set_slides_mode" ? 31 : _t6 === "get_slide_grid" ? 33 : _t6 === "create_text" ? 35 : _t6 === "create_shape_with_text" ? 37 : _t6 === "create_table" ? 39 : _t6 === "create_gif" ? 41 : _t6 === "set_fill_color" ? 43 : _t6 === "set_stroke_color" ? 45 : _t6 === "move_node" ? 47 : _t6 === "resize_node" ? 49 : _t6 === "delete_node" ? 51 : _t6 === "delete_multiple_nodes" ? 53 : _t6 === "get_styles" ? 55 : _t6 === "get_local_components" ? 57 : _t6 === "create_component_instance" ? 59 : _t6 === "export_node_as_image" ? 61 : _t6 === "set_corner_radius" ? 63 : _t6 === "set_text_content" ? 65 : _t6 === "clone_node" ? 67 : _t6 === "scan_text_nodes" ? 69 : _t6 === "set_multiple_text_contents" ? 71 : _t6 === "get_annotations" ? 73 : _t6 === "set_annotation" ? 75 : _t6 === "scan_nodes_by_types" ? 77 : _t6 === "set_multiple_annotations" ? 79 : _t6 === "get_instance_overrides" ? 81 : _t6 === "set_instance_overrides" ? 87 : _t6 === "set_layout_mode" ? 95 : _t6 === "set_padding" ? 97 : _t6 === "set_axis_align" ? 99 : _t6 === "set_layout_sizing" ? 101 : _t6 === "set_item_spacing" ? 103 : _t6 === "get_reactions" ? 105 : _t6 === "set_default_connector" ? 108 : _t6 === "create_connections" ? 110 : _t6 === "set_text_style_range" ? 112 : _t6 === "get_text_style_range" ? 114 : _t6 === "set_text_decoration_range" ? 116 : _t6 === "get_text_decoration_range" ? 118 : _t6 === "set_range_font" ? 120 : _t6 === "set_range_font_size" ? 122 : _t6 === "set_range_fills" ? 124 : _t6 === "get_styled_text_segments" ? 126 : _t6 === "set_component_description" ? 128 : _t6 === "get_component_description" ? 130 : _t6 === "normalize_markdown" ? 132 : _t6 === "update_text_preserve_formatting" ? 134 : _t6 === "smart_text_replace" ? 136 : _t6 === "set_multiple_text_contents_with_styles" ? 138 : _t6 === "clone_multiple_nodes" ? 140 : _t6 === "get_multiple_nodes_info" ? 142 : _t6 === "set_multiple_nodes_property" ? 144 : _t6 === "scan_nodes_with_options" ? 146 : _t6 === "get_connection_status" ? 148 : _t6 === "execute_batch" ? 150 : 152;
+          _context7.n = _t6 === "get_document_info" ? 1 : _t6 === "get_selection" ? 3 : _t6 === "get_node_info" ? 5 : _t6 === "get_nodes_info" ? 8 : _t6 === "read_my_design" ? 11 : _t6 === "create_rectangle" ? 13 : _t6 === "create_frame" ? 15 : _t6 === "create_slide" ? 17 : _t6 === "create_slide_row" ? 19 : _t6 === "set_slide_grid" ? 21 : _t6 === "get_focused_slide" ? 23 : _t6 === "get_slide_transition" ? 25 : _t6 === "set_slide_transition" ? 27 : _t6 === "get_slides_mode" ? 29 : _t6 === "set_slides_mode" ? 31 : _t6 === "get_slide_grid" ? 33 : _t6 === "create_text" ? 35 : _t6 === "create_shape_with_text" ? 37 : _t6 === "create_table" ? 39 : _t6 === "create_gif" ? 41 : _t6 === "set_fill_color" ? 43 : _t6 === "set_stroke_color" ? 45 : _t6 === "move_node" ? 47 : _t6 === "resize_node" ? 49 : _t6 === "delete_node" ? 51 : _t6 === "delete_multiple_nodes" ? 53 : _t6 === "get_styles" ? 55 : _t6 === "get_local_components" ? 57 : _t6 === "create_component_instance" ? 59 : _t6 === "export_node_as_image" ? 61 : _t6 === "set_corner_radius" ? 63 : _t6 === "set_text_content" ? 65 : _t6 === "clone_node" ? 67 : _t6 === "scan_text_nodes" ? 69 : _t6 === "set_multiple_text_contents" ? 71 : _t6 === "get_annotations" ? 73 : _t6 === "set_annotation" ? 75 : _t6 === "scan_nodes_by_types" ? 77 : _t6 === "set_multiple_annotations" ? 79 : _t6 === "get_instance_overrides" ? 81 : _t6 === "set_instance_overrides" ? 87 : _t6 === "set_layout_mode" ? 95 : _t6 === "set_padding" ? 97 : _t6 === "set_axis_align" ? 99 : _t6 === "set_layout_sizing" ? 101 : _t6 === "set_item_spacing" ? 103 : _t6 === "get_reactions" ? 105 : _t6 === "set_default_connector" ? 108 : _t6 === "create_connections" ? 110 : _t6 === "set_text_style_range" ? 112 : _t6 === "get_text_style_range" ? 114 : _t6 === "set_text_decoration_range" ? 116 : _t6 === "get_text_decoration_range" ? 118 : _t6 === "set_range_font" ? 120 : _t6 === "set_range_font_size" ? 122 : _t6 === "set_range_fills" ? 124 : _t6 === "get_styled_text_segments" ? 126 : _t6 === "set_component_description" ? 128 : _t6 === "get_component_description" ? 130 : _t6 === "normalize_markdown" ? 132 : _t6 === "update_text_preserve_formatting" ? 134 : _t6 === "smart_text_replace" ? 136 : _t6 === "set_multiple_text_contents_with_styles" ? 138 : _t6 === "clone_multiple_nodes" ? 140 : _t6 === "get_multiple_nodes_info" ? 142 : _t6 === "set_multiple_nodes_property" ? 144 : _t6 === "scan_nodes_with_options" ? 146 : _t6 === "get_connection_status" ? 148 : _t6 === "execute_batch" ? 150 : _t6 === "get_nodes" ? 152 : _t6 === "get_current_context" ? 154 : _t6 === "extract_slide_content" ? 156 : _t6 === "get_presentation_summary" ? 158 : _t6 === "get_table_data" ? 160 : 162;
           break;
         case 1:
           _context7.n = 2;
@@ -577,8 +577,33 @@ function _handleCommand() {
         case 151:
           return _context7.a(2, _context7.v);
         case 152:
-          throw new Error("Unknown command: ".concat(command));
+          _context7.n = 153;
+          return getNodes(params);
         case 153:
+          return _context7.a(2, _context7.v);
+        case 154:
+          _context7.n = 155;
+          return getCurrentContext(params);
+        case 155:
+          return _context7.a(2, _context7.v);
+        case 156:
+          _context7.n = 157;
+          return extractSlideContent(params);
+        case 157:
+          return _context7.a(2, _context7.v);
+        case 158:
+          _context7.n = 159;
+          return getPresentationSummary(params);
+        case 159:
+          return _context7.a(2, _context7.v);
+        case 160:
+          _context7.n = 161;
+          return getTableData(params);
+        case 161:
+          return _context7.a(2, _context7.v);
+        case 162:
+          throw new Error("Unknown command: ".concat(command));
+        case 163:
           return _context7.a(2);
       }
     }, _callee7);
@@ -891,7 +916,7 @@ function _getNodesInfo() {
                 }
               }, _callee1);
             }));
-            return function (_x85) {
+            return function (_x90) {
               return _ref13.apply(this, arguments);
             };
           }()));
@@ -972,7 +997,7 @@ function _getReactions() {
             }));
             return _highlightNodeWithAnimation.apply(this, arguments);
           };
-          highlightNodeWithAnimation = function _highlightNodeWithAni(_x87) {
+          highlightNodeWithAnimation = function _highlightNodeWithAni(_x92) {
             return _highlightNodeWithAnimation.apply(this, arguments);
           };
           _findNodesWithReactions = function _findNodesWithReactio2() {
@@ -1071,7 +1096,7 @@ function _getReactions() {
             }));
             return _findNodesWithReactions.apply(this, arguments);
           };
-          findNodesWithReactions = function _findNodesWithReactio(_x86) {
+          findNodesWithReactions = function _findNodesWithReactio(_x91) {
             return _findNodesWithReactions.apply(this, arguments);
           };
           commandId = generateCommandId();
@@ -1188,7 +1213,7 @@ function _readMyDesign() {
                 }
               }, _callee14);
             }));
-            return function (_x88) {
+            return function (_x93) {
               return _ref14.apply(this, arguments);
             };
           }()));
@@ -4931,7 +4956,7 @@ function _setMultipleTextContents() {
                 }
               }, _callee48, null, [[8, 10], [1, 12]]);
             }));
-            return function (_x89) {
+            return function (_x94) {
               return _ref39.apply(this, arguments);
             };
           }()); // Wait for all replacements in this chunk to complete
@@ -5819,7 +5844,7 @@ function _cloneMultipleNodes() {
                 }
               }, _callee53, null, [[0, 4]]);
             }));
-            return function (_x90) {
+            return function (_x95) {
               return _ref44.apply(this, arguments);
             };
           }());
@@ -5916,7 +5941,7 @@ function _getMultipleNodesInfo() {
                 }
               }, _callee55, null, [[0, 4]]);
             }));
-            return function (_x91) {
+            return function (_x96) {
               return _ref46.apply(this, arguments);
             };
           }());
@@ -6160,7 +6185,7 @@ function _scanNodesWithOptions() {
             }));
             return _scanNode.apply(this, arguments);
           };
-          scanNode = function _scanNode2(_x92) {
+          scanNode = function _scanNode2(_x97) {
             return _scanNode.apply(this, arguments);
           };
           _ref48 = params || {}, nodeId = _ref48.nodeId, _ref48$options = _ref48.options, options = _ref48$options === void 0 ? {} : _ref48$options;
@@ -7281,7 +7306,7 @@ function _getAnnotations() {
                 }
               }, _callee74, null, [[1, 5, 6, 7]]);
             }));
-            return function processNode(_x93) {
+            return function processNode(_x98) {
               return _ref61.apply(this, arguments);
             };
           }(); // Start from current page
@@ -7783,7 +7808,7 @@ function _deleteMultipleNodes() {
                 }
               }, _callee80, null, [[0, 3]]);
             }));
-            return function (_x94) {
+            return function (_x99) {
               return _ref64.apply(this, arguments);
             };
           }()); // Wait for all deletions in this chunk to complete
@@ -8998,7 +9023,7 @@ function _createCursorNode() {
 }
 function createConnections(_x84) {
   return _createConnections.apply(this, arguments);
-}
+} // New unified API handlers
 function _createConnections() {
   _createConnections = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee93(params) {
     var connections, commandId, defaultConnectorId, defaultConnector, results, processedCount, totalCount, fontLoaded, i, _connections$i, originalStartId, originalEndId, text, startId, endId, cursorResult, startNode, _cursorResult, endNode, clonedConnector, fontName, _t95, _t96, _t97, _t98, _t99;
@@ -9245,4 +9270,615 @@ function _createConnections() {
     }, _callee93, null, [[28, 30], [25, 27], [20, 24], [19, 32], [8, 34]]);
   }));
   return _createConnections.apply(this, arguments);
+}
+function getNodes(_x85) {
+  return _getNodes.apply(this, arguments);
+}
+function _getNodes() {
+  _getNodes = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee94(params) {
+    var _ref71, nodeIds, _ref71$includeChildre, includeChildren, _ref71$maxDepth, maxDepth, ids, nodeInfo, result;
+    return _regenerator().w(function (_context94) {
+      while (1) switch (_context94.n) {
+        case 0:
+          _ref71 = params || {}, nodeIds = _ref71.nodeIds, _ref71$includeChildre = _ref71.includeChildren, includeChildren = _ref71$includeChildre === void 0 ? true : _ref71$includeChildre, _ref71$maxDepth = _ref71.maxDepth, maxDepth = _ref71$maxDepth === void 0 ? -1 : _ref71$maxDepth; // Handle both single nodeId string and array of nodeIds
+          ids = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
+          if (!(!ids || ids.length === 0)) {
+            _context94.n = 1;
+            break;
+          }
+          throw new Error("Missing nodeIds parameter");
+        case 1:
+          if (!(ids.length === 1)) {
+            _context94.n = 3;
+            break;
+          }
+          _context94.n = 2;
+          return getNodeInfo(ids[0]);
+        case 2:
+          nodeInfo = _context94.v;
+          return _context94.a(2, {
+            success: true,
+            nodes: [nodeInfo],
+            includeChildren: includeChildren,
+            maxDepth: maxDepth
+          });
+        case 3:
+          _context94.n = 4;
+          return getMultipleNodesInfo({
+            nodeIds: ids
+          });
+        case 4:
+          result = _context94.v;
+          return _context94.a(2, {
+            success: result.success,
+            nodes: result.results.filter(function (r) {
+              return r.success;
+            }).map(function (r) {
+              return r.info;
+            }),
+            totalFound: result.totalFound,
+            totalNotFound: result.totalNotFound,
+            includeChildren: includeChildren,
+            maxDepth: maxDepth
+          });
+      }
+    }, _callee94);
+  }));
+  return _getNodes.apply(this, arguments);
+}
+function getCurrentContext(_x86) {
+  return _getCurrentContext.apply(this, arguments);
+}
+function _getCurrentContext() {
+  _getCurrentContext = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee95(params) {
+    var _ref72, _ref72$includeDocumen, includeDocument, _ref72$includeSlideDe, includeSlideDetails, _ref72$includeSelecti, includeSelectionDetails, context, selection, nodeIds, nodesInfo, slidesMode, focusedSlide, docInfo, _t100, _t101, _t102, _t103;
+    return _regenerator().w(function (_context95) {
+      while (1) switch (_context95.n) {
+        case 0:
+          _ref72 = params || {}, _ref72$includeDocumen = _ref72.includeDocument, includeDocument = _ref72$includeDocumen === void 0 ? false : _ref72$includeDocumen, _ref72$includeSlideDe = _ref72.includeSlideDetails, includeSlideDetails = _ref72$includeSlideDe === void 0 ? true : _ref72$includeSlideDe, _ref72$includeSelecti = _ref72.includeSelectionDetails, includeSelectionDetails = _ref72$includeSelecti === void 0 ? false : _ref72$includeSelecti;
+          context = {
+            selection: null,
+            focusedSlide: null,
+            slidesMode: false,
+            document: null
+          }; // Get selection
+          _context95.p = 1;
+          _context95.n = 2;
+          return getSelection();
+        case 2:
+          selection = _context95.v;
+          context.selection = selection;
+          if (!(includeSelectionDetails && selection.selectedNodes && selection.selectedNodes.length > 0)) {
+            _context95.n = 4;
+            break;
+          }
+          // Get detailed info for selected nodes
+          nodeIds = selection.selectedNodes.map(function (n) {
+            return n.id;
+          });
+          _context95.n = 3;
+          return getMultipleNodesInfo({
+            nodeIds: nodeIds
+          });
+        case 3:
+          nodesInfo = _context95.v;
+          context.selectionDetails = nodesInfo.results;
+        case 4:
+          _context95.n = 6;
+          break;
+        case 5:
+          _context95.p = 5;
+          _t100 = _context95.v;
+          context.selection = {
+            error: _t100.message
+          };
+        case 6:
+          _context95.p = 6;
+          _context95.n = 7;
+          return getSlidesMode();
+        case 7:
+          slidesMode = _context95.v;
+          context.slidesMode = slidesMode.inSlidesMode;
+          if (!(slidesMode.inSlidesMode && includeSlideDetails)) {
+            _context95.n = 11;
+            break;
+          }
+          _context95.p = 8;
+          _context95.n = 9;
+          return getFocusedSlide();
+        case 9:
+          focusedSlide = _context95.v;
+          context.focusedSlide = focusedSlide;
+          _context95.n = 11;
+          break;
+        case 10:
+          _context95.p = 10;
+          _t101 = _context95.v;
+          context.focusedSlide = {
+            error: _t101.message
+          };
+        case 11:
+          _context95.n = 13;
+          break;
+        case 12:
+          _context95.p = 12;
+          _t102 = _context95.v;
+        case 13:
+          if (!includeDocument) {
+            _context95.n = 17;
+            break;
+          }
+          _context95.p = 14;
+          _context95.n = 15;
+          return getDocumentInfo();
+        case 15:
+          docInfo = _context95.v;
+          context.document = docInfo;
+          _context95.n = 17;
+          break;
+        case 16:
+          _context95.p = 16;
+          _t103 = _context95.v;
+          context.document = {
+            error: _t103.message
+          };
+        case 17:
+          return _context95.a(2, context);
+      }
+    }, _callee95, null, [[14, 16], [8, 10], [6, 12], [1, 5]]);
+  }));
+  return _getCurrentContext.apply(this, arguments);
+}
+function extractSlideContent(_x87) {
+  return _extractSlideContent.apply(this, arguments);
+}
+function _extractSlideContent() {
+  _extractSlideContent = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee96(params) {
+    var _ref73, slideId, _ref73$includeImages, includeImages, _ref73$outputFormat, outputFormat, _ref73$textOnly, textOnly, content, slideInfo, scanOptions, scanResult, _iterator22, _step22, node, tableData, rawText, tableText, _t104, _t105;
+    return _regenerator().w(function (_context96) {
+      while (1) switch (_context96.n) {
+        case 0:
+          _ref73 = params || {}, slideId = _ref73.slideId, _ref73$includeImages = _ref73.includeImages, includeImages = _ref73$includeImages === void 0 ? false : _ref73$includeImages, _ref73$outputFormat = _ref73.outputFormat, outputFormat = _ref73$outputFormat === void 0 ? "structured" : _ref73$outputFormat, _ref73$textOnly = _ref73.textOnly, textOnly = _ref73$textOnly === void 0 ? false : _ref73$textOnly;
+          if (slideId) {
+            _context96.n = 1;
+            break;
+          }
+          throw new Error("Missing slideId parameter");
+        case 1:
+          content = {
+            slideId: slideId,
+            text: [],
+            tables: [],
+            images: [],
+            metadata: {}
+          }; // Get slide info
+          _context96.n = 2;
+          return getNodeInfo(slideId);
+        case 2:
+          slideInfo = _context96.v;
+          if (!(!slideInfo || slideInfo.type !== "SLIDE")) {
+            _context96.n = 3;
+            break;
+          }
+          throw new Error("Node is not a slide");
+        case 3:
+          content.metadata = {
+            name: slideInfo.name || "",
+            width: slideInfo.width || 0,
+            height: slideInfo.height || 0
+          };
+
+          // Scan for content nodes
+          scanOptions = {
+            maxDepth: -1,
+            nodeTypes: textOnly ? ["TEXT"] : ["TEXT", "TABLE", "RECTANGLE", "FRAME"],
+            timeout: 10000,
+            returnPartialOnTimeout: true
+          };
+          _context96.n = 4;
+          return scanNodesWithOptions({
+            nodeId: slideId,
+            options: scanOptions
+          });
+        case 4:
+          scanResult = _context96.v;
+          if (!(scanResult.nodes && scanResult.nodes.length > 0)) {
+            _context96.n = 17;
+            break;
+          }
+          _iterator22 = _createForOfIteratorHelper(scanResult.nodes);
+          _context96.p = 5;
+          _iterator22.s();
+        case 6:
+          if ((_step22 = _iterator22.n()).done) {
+            _context96.n = 14;
+            break;
+          }
+          node = _step22.value;
+          if (!(node.type === "TEXT" && node.characters)) {
+            _context96.n = 7;
+            break;
+          }
+          content.text.push({
+            id: node.id,
+            text: node.characters,
+            name: node.name
+          });
+          _context96.n = 13;
+          break;
+        case 7:
+          if (!(node.type === "TABLE" && !textOnly)) {
+            _context96.n = 12;
+            break;
+          }
+          _context96.p = 8;
+          _context96.n = 9;
+          return getTableData({
+            tableId: node.id,
+            outputFormat: "array",
+            includeHeaders: true
+          });
+        case 9:
+          tableData = _context96.v;
+          if (tableData.data) {
+            content.tables.push({
+              id: node.id,
+              name: node.name,
+              data: tableData.data
+            });
+          }
+          _context96.n = 11;
+          break;
+        case 10:
+          _context96.p = 10;
+          _t104 = _context96.v;
+        case 11:
+          _context96.n = 13;
+          break;
+        case 12:
+          if ((node.type === "RECTANGLE" || node.type === "FRAME") && includeImages && !textOnly) {
+            if (node.name && (node.name.toLowerCase().includes("image") || node.name.toLowerCase().includes("img"))) {
+              content.images.push({
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                bounds: node.absoluteBoundingBox
+              });
+            }
+          }
+        case 13:
+          _context96.n = 6;
+          break;
+        case 14:
+          _context96.n = 16;
+          break;
+        case 15:
+          _context96.p = 15;
+          _t105 = _context96.v;
+          _iterator22.e(_t105);
+        case 16:
+          _context96.p = 16;
+          _iterator22.f();
+          return _context96.f(16);
+        case 17:
+          if (!(outputFormat === "raw")) {
+            _context96.n = 18;
+            break;
+          }
+          rawText = content.text.map(function (t) {
+            return t.text;
+          }).join("\n\n");
+          tableText = content.tables.map(function (t) {
+            return "Table: ".concat(t.name, "\n").concat(formatTableAsText(t.data));
+          }).join("\n\n");
+          return _context96.a(2, [rawText, tableText].filter(Boolean).join("\n\n"));
+        case 18:
+          return _context96.a(2, content);
+        case 19:
+          return _context96.a(2);
+      }
+    }, _callee96, null, [[8, 10], [5, 15, 16, 17]]);
+  }));
+  return _extractSlideContent.apply(this, arguments);
+}
+function getPresentationSummary(_x88) {
+  return _getPresentationSummary.apply(this, arguments);
+}
+function _getPresentationSummary() {
+  _getPresentationSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee97(params) {
+    var _docInfo$children;
+    var _ref74, _ref74$includeOutline, includeOutline, _ref74$maxTextPreview, maxTextPreview, _ref74$includeEmptySl, includeEmptySlides, slidesMode, docInfo, slidesNode, slides, summary, i, slide, slideInfo, scanResult, textNodes, allText, bulletMatches, numberMatches, points, preview, slidesWithContent, _t106;
+    return _regenerator().w(function (_context97) {
+      while (1) switch (_context97.n) {
+        case 0:
+          _ref74 = params || {}, _ref74$includeOutline = _ref74.includeOutline, includeOutline = _ref74$includeOutline === void 0 ? true : _ref74$includeOutline, _ref74$maxTextPreview = _ref74.maxTextPreview, maxTextPreview = _ref74$maxTextPreview === void 0 ? 200 : _ref74$maxTextPreview, _ref74$includeEmptySl = _ref74.includeEmptySlides, includeEmptySlides = _ref74$includeEmptySl === void 0 ? false : _ref74$includeEmptySl; // Check if in slides mode
+          _context97.n = 1;
+          return getSlidesMode();
+        case 1:
+          slidesMode = _context97.v;
+          if (slidesMode.inSlidesMode) {
+            _context97.n = 2;
+            break;
+          }
+          throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
+        case 2:
+          _context97.n = 3;
+          return getDocumentInfo();
+        case 3:
+          docInfo = _context97.v;
+          slidesNode = (_docInfo$children = docInfo.children) === null || _docInfo$children === void 0 ? void 0 : _docInfo$children.find(function (child) {
+            return child.type === "SLIDES";
+          });
+          if (!(!slidesNode || !slidesNode.children)) {
+            _context97.n = 4;
+            break;
+          }
+          throw new Error("No slides found in the presentation");
+        case 4:
+          slides = slidesNode.children.filter(function (child) {
+            return child.type === "SLIDE";
+          });
+          summary = {
+            presentationName: docInfo.name || "Untitled Presentation",
+            totalSlides: slides.length,
+            focusedSlideId: slidesMode.currentSlideId || null,
+            slides: []
+          }; // Process each slide
+          i = 0;
+        case 5:
+          if (!(i < slides.length)) {
+            _context97.n = 11;
+            break;
+          }
+          slide = slides[i];
+          slideInfo = {
+            index: i + 1,
+            id: slide.id,
+            title: slide.name || "Slide ".concat(i + 1),
+            hasContent: false
+          };
+          if (!includeOutline) {
+            _context97.n = 9;
+            break;
+          }
+          _context97.p = 6;
+          _context97.n = 7;
+          return scanNodesWithOptions({
+            nodeId: slide.id,
+            options: {
+              maxDepth: 3,
+              nodeTypes: ["TEXT"],
+              timeout: 2000,
+              returnPartialOnTimeout: true
+            }
+          });
+        case 7:
+          scanResult = _context97.v;
+          if (scanResult.nodes && scanResult.nodes.length > 0) {
+            slideInfo.hasContent = true;
+            textNodes = scanResult.nodes.filter(function (node) {
+              return node.characters;
+            });
+            allText = textNodes.map(function (node) {
+              return node.characters;
+            }).join(" ");
+            if (allText.trim()) {
+              slideInfo.keyPoints = [];
+
+              // Look for bullet points or numbered lists
+              bulletMatches = allText.match(/[•·\-*]\s*([^\n•·\-*]+)/g);
+              numberMatches = allText.match(/\d+\.\s*([^\n]+)/g);
+              if (bulletMatches || numberMatches) {
+                points = [].concat(_toConsumableArray(bulletMatches || []), _toConsumableArray(numberMatches || [])).map(function (point) {
+                  return point.replace(/^[•·\-*\d.]\s*/, '').trim();
+                }).filter(function (point) {
+                  return point.length > 5;
+                }).slice(0, 5);
+                if (points.length > 0) {
+                  slideInfo.keyPoints = points;
+                }
+              }
+              if (slideInfo.keyPoints.length === 0) {
+                preview = allText.substring(0, maxTextPreview).trim();
+                if (preview) {
+                  slideInfo.textPreview = preview + (allText.length > maxTextPreview ? "..." : "");
+                }
+              }
+              slideInfo.contentStats = {
+                textNodes: textNodes.length,
+                totalCharacters: allText.length
+              };
+            }
+          }
+          _context97.n = 9;
+          break;
+        case 8:
+          _context97.p = 8;
+          _t106 = _context97.v;
+          slideInfo.scanError = true;
+        case 9:
+          if (slideInfo.hasContent || includeEmptySlides) {
+            summary.slides.push(slideInfo);
+          }
+        case 10:
+          i++;
+          _context97.n = 5;
+          break;
+        case 11:
+          // Generate executive summary
+          if (includeOutline) {
+            slidesWithContent = summary.slides.filter(function (s) {
+              return s.hasContent;
+            });
+            summary.executiveSummary = {
+              slidesWithContent: slidesWithContent.length,
+              emptySlides: slides.length - slidesWithContent.length,
+              averageContentPerSlide: slidesWithContent.length > 0 ? Math.round(slidesWithContent.reduce(function (sum, slide) {
+                var _slide$contentStats;
+                return sum + (((_slide$contentStats = slide.contentStats) === null || _slide$contentStats === void 0 ? void 0 : _slide$contentStats.totalCharacters) || 0);
+              }, 0) / slidesWithContent.length) : 0
+            };
+          }
+          return _context97.a(2, summary);
+      }
+    }, _callee97, null, [[6, 8]]);
+  }));
+  return _getPresentationSummary.apply(this, arguments);
+}
+function getTableData(_x89) {
+  return _getTableData.apply(this, arguments);
+} // Helper function for table formatting
+function _getTableData() {
+  _getTableData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee98(params) {
+    var _tableInfo$children;
+    var _ref75, tableId, _ref75$outputFormat, outputFormat, _ref75$includeHeaders, includeHeaders, _ref75$headerRow, headerRow, _ref75$cleanEmptyCell, cleanEmptyCells, tableInfo, cells, rows, maxRow, maxCol, r, c, finalRows, result, headers, dataRows, csvRows, _t107;
+    return _regenerator().w(function (_context98) {
+      while (1) switch (_context98.n) {
+        case 0:
+          _ref75 = params || {}, tableId = _ref75.tableId, _ref75$outputFormat = _ref75.outputFormat, outputFormat = _ref75$outputFormat === void 0 ? "array" : _ref75$outputFormat, _ref75$includeHeaders = _ref75.includeHeaders, includeHeaders = _ref75$includeHeaders === void 0 ? true : _ref75$includeHeaders, _ref75$headerRow = _ref75.headerRow, headerRow = _ref75$headerRow === void 0 ? 0 : _ref75$headerRow, _ref75$cleanEmptyCell = _ref75.cleanEmptyCells, cleanEmptyCells = _ref75$cleanEmptyCell === void 0 ? true : _ref75$cleanEmptyCell;
+          if (tableId) {
+            _context98.n = 1;
+            break;
+          }
+          throw new Error("Missing tableId parameter");
+        case 1:
+          _context98.n = 2;
+          return getNodeInfo(tableId);
+        case 2:
+          tableInfo = _context98.v;
+          if (!(!tableInfo || tableInfo.type !== "TABLE")) {
+            _context98.n = 3;
+            break;
+          }
+          throw new Error("Node is not a table");
+        case 3:
+          // Extract cells
+          cells = ((_tableInfo$children = tableInfo.children) === null || _tableInfo$children === void 0 ? void 0 : _tableInfo$children.filter(function (child) {
+            return child.type === "TABLE_CELL";
+          })) || [];
+          if (!(cells.length === 0)) {
+            _context98.n = 4;
+            break;
+          }
+          return _context98.a(2, {
+            metadata: {
+              tableId: tableId,
+              tableName: tableInfo.name || "Untitled Table",
+              rows: 0,
+              columns: 0,
+              totalCells: 0,
+              format: outputFormat
+            },
+            data: outputFormat === "csv" ? "" : []
+          });
+        case 4:
+          // Parse cells into 2D array
+          rows = [];
+          maxRow = 0;
+          maxCol = 0;
+          cells.forEach(function (cell) {
+            // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+            var match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+            if (match) {
+              var row = parseInt(match[1]);
+              var col = parseInt(match[2]);
+              maxRow = Math.max(maxRow, row);
+              maxCol = Math.max(maxCol, col);
+              if (!rows[row]) rows[row] = [];
+              rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+            }
+          });
+
+          // Fill missing cells
+          for (r = 0; r <= maxRow; r++) {
+            if (!rows[r]) rows[r] = [];
+            for (c = 0; c <= maxCol; c++) {
+              if (rows[r][c] === undefined) rows[r][c] = "";
+            }
+          }
+
+          // Clean empty rows
+          finalRows = rows.filter(function (row) {
+            return row && row.some(function (cell) {
+              return cell !== "";
+            });
+          }); // Process based on output format
+          headers = [];
+          if (includeHeaders && finalRows.length > headerRow) {
+            headers = finalRows[headerRow].map(function (h, idx) {
+              return String(h).trim() || "Column".concat(idx + 1);
+            });
+          }
+          _t107 = outputFormat;
+          _context98.n = _t107 === "object" ? 5 : _t107 === "csv" ? 6 : _t107 === "array" ? 7 : 7;
+          break;
+        case 5:
+          if (includeHeaders && headers.length > 0) {
+            dataRows = finalRows.slice(headerRow + 1);
+            result = dataRows.map(function (row) {
+              var obj = {};
+              headers.forEach(function (header, index) {
+                var value = row[index] || "";
+                if (!cleanEmptyCells || value !== "") {
+                  obj[header] = value;
+                }
+              });
+              return obj;
+            });
+          } else {
+            result = finalRows.map(function (row) {
+              var obj = {};
+              row.forEach(function (cell, index) {
+                if (!cleanEmptyCells || cell !== "") {
+                  obj["col".concat(index + 1)] = cell;
+                }
+              });
+              return obj;
+            });
+          }
+          return _context98.a(3, 8);
+        case 6:
+          csvRows = finalRows.map(function (row) {
+            return row.map(function (cell) {
+              var cellStr = String(cell);
+              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                return '"' + cellStr.replace(/"/g, '""') + '"';
+              }
+              return cellStr;
+            }).join(',');
+          });
+          result = csvRows.join('\n');
+          return _context98.a(3, 8);
+        case 7:
+          result = cleanEmptyCells ? finalRows.map(function (row) {
+            return row.filter(function (cell) {
+              return cell !== "";
+            });
+          }) : finalRows;
+          return _context98.a(3, 8);
+        case 8:
+          return _context98.a(2, {
+            metadata: {
+              tableId: tableId,
+              tableName: tableInfo.name || "Untitled Table",
+              rows: finalRows.length,
+              columns: maxCol + 1,
+              totalCells: cells.length,
+              format: outputFormat
+            },
+            headers: includeHeaders ? headers : undefined,
+            data: result
+          });
+      }
+    }, _callee98);
+  }));
+  return _getTableData.apply(this, arguments);
+}
+function formatTableAsText(data) {
+  if (!data || data.length === 0) return "";
+  return data.map(function (row) {
+    return row.map(function (cell) {
+      return cell || "";
+    }).join(" | ");
+  }).join("\n");
 }
