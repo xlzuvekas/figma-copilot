@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-01-17
+
+### 🐛 Critical Bug Fixes
+
+This patch release fixes several critical issues discovered during testing of v0.4.0-0.4.1:
+
+- **Fixed `get_nodes` array parameter handling** - Now properly handles both single string IDs and arrays of IDs
+- **Fixed `get_table_data` cell parsing** - Tables now correctly extract cell data with fallback positioning for non-standard cell IDs
+- **Fixed `get_presentation_summary` Slides mode check** - Removed problematic API calls, now uses document structure detection
+- **Fixed `extract_slide_content` table extraction** - Tables are now properly extracted with content
+
+### 📝 Technical Details
+
+- Changed `get_nodes` schema from `z.union()` to `z.any()` with runtime validation for better compatibility
+- Updated table cell parsing to handle both standard (T[id];[row];[col]) and non-standard cell ID formats
+- Improved error handling for Slides mode detection without requiring unavailable APIs
+- Enhanced table data extraction with support for cells that store text in nested properties
+
+### ✅ Test Results
+
+All previously failing tools now work correctly:
+- `get_nodes` accepts arrays properly
+- `get_table_data` extracts complete table data in all formats (array, object, CSV)
+- `get_presentation_summary` works in Slides mode without API errors
+- `extract_slide_content` includes table data in output
+
 ## [0.4.1] - 2025-01-17
 
 ### 🐛 Bug Fixes
