@@ -548,15 +548,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating frame: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create frame: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -619,15 +622,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating text: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create text: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document',
+            'Use update_text_preserve_formatting to maintain text styles'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -660,15 +667,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting fill color: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set fill color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -703,15 +714,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting stroke color: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set stroke color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -738,15 +753,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error moving node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to move node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure x and y coordinates are valid numbers',
+            'Check if the node is locked or constrained'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -773,14 +792,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error cloning node: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to clone node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the source node ID is valid',
+            'Ensure you have permission to duplicate the node',
+            'Check if the node type supports cloning'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -811,15 +835,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error resizing node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to resize node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure width and height are positive numbers',
+            'Check if the node has size constraints'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -843,15 +871,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error deleting node: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to delete node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure you have permission to delete the node',
+            'Check if the node is locked or protected'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -875,15 +907,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error deleting multiple nodes: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.BATCH_PARTIAL_FAILURE,
+        `Failed to delete multiple nodes: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify all node IDs in the batch are valid',
+            'Check if some operations may have partially succeeded',
+            'Ensure you have permissions for all items'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -919,15 +954,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error exporting node as image: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to export node as image: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check if the node is visible and not empty',
+            'Ensure the export format is supported (PNG, JPG, SVG, PDF)'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -956,15 +995,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting text content: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set text content: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -986,15 +1029,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting styles: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get styles: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1016,15 +1062,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting local components: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to get local components: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1052,14 +1101,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting annotations: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1095,14 +1149,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting annotation: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set annotation: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1218,15 +1277,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting multiple annotations: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1257,15 +1320,18 @@ server.tool(
         ]
       }
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating component instance: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to create component instance: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1295,14 +1361,19 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error copying instance overrides: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to copy instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure the node is a component instance',
+            'Check if the instance has any overrides'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1344,14 +1415,18 @@ server.tool(
         };
       }
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting instance overrides: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1389,15 +1464,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting corner radius: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set corner radius: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1612,15 +1691,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error scanning nodes by types: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to scan nodes by types: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the parent node ID is valid',
+            'Check if the scan criteria are properly specified',
+            'Consider using pagination for large node trees'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1855,15 +1938,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting multiple text contents: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple text contents: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2107,14 +2194,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting layout mode: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout mode: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2161,14 +2253,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting padding: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set padding: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2215,14 +2312,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting axis alignment: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set axis alignment: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2269,14 +2371,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting layout sizing: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout sizing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2306,14 +2413,19 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting item spacing: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set item spacing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2345,15 +2457,19 @@ server.tool(
         },
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting reactions: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get reactions: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: nodeIds[0],
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2380,14 +2496,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error setting default connector: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set default connector: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -2429,14 +2549,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error creating connections: ${error instanceof Error ? error.message : String(error)}`
-          }
-        ]
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create connections: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -4451,15 +4575,18 @@ server.tool(
         ],
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error joining channel: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to join channel: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure the channel name is valid',
+            'Check if the WebSocket connection is active',
+            'Verify the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );

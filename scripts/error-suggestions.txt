@@ -1,0 +1,608 @@
+Tool: create_frame
+Line: 550-550
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create frame: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: create_text
+Line: 621-621
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create text: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_fill_color
+Line: 662-662
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set fill color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_stroke_color
+Line: 705-705
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set stroke color: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: move_node
+Line: 740-740
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to move node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure x and y coordinates are valid numbers',
+            'Check if the node is locked or constrained'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: clone_node
+Line: 775-775
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to clone node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the source node ID is valid',
+            'Ensure you have permission to duplicate the node',
+            'Check if the node type supports cloning'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: resize_node
+Line: 813-813
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to resize node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure width and height are positive numbers',
+            'Check if the node has size constraints'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: delete_node
+Line: 845-845
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to delete node: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure you have permission to delete the node',
+            'Check if the node is locked or protected'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: delete_multiple_nodes
+Line: 877-877
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.BATCH_PARTIAL_FAILURE,
+        `Failed to delete multiple nodes: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Ensure you have permission to delete the node',
+            'Check if the node is locked or protected'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: export_node_as_image
+Line: 921-921
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to export node as image: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check if the node is visible and not empty',
+            'Ensure the export format is supported (PNG, JPG, SVG, PDF)'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_text_content
+Line: 958-958
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set text content: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: get_styles
+Line: 988-988
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get styles: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: get_local_components
+Line: 1018-1018
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to get local components: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: get_annotations
+Line: 1054-1054
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_annotation
+Line: 1097-1097
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set annotation: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_multiple_annotations
+Line: 1220-1220
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple annotations: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: create_component_instance
+Line: 1259-1259
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.COMPONENT_NOT_FOUND,
+        `Failed to create component instance: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: get_instance_overrides
+Line: 1297-1297
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to copy instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            ''
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_instance_overrides
+Line: 1346-1346
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set instance overrides: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_corner_radius
+Line: 1391-1391
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set corner radius: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: scan_nodes_by_types
+Line: 1614-1614
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to scan nodes by types: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the parent node ID is valid',
+            'Check if the scan criteria are properly specified',
+            'Consider using pagination for large node trees'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_multiple_text_contents
+Line: 1857-1857
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set multiple text contents: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_layout_mode
+Line: 2109-2109
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout mode: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_padding
+Line: 2163-2163
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set padding: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_axis_align
+Line: 2217-2217
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set axis alignment: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_layout_sizing
+Line: 2271-2271
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set layout sizing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_item_spacing
+Line: 2308-2308
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set item spacing: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: get_reactions
+Line: 2347-2347
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get reactions: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have read access'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: set_default_connector
+Line: 2382-2382
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to set default connector: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Verify the node ID is valid',
+            'Check parameter values are in the correct format',
+            'Ensure the node supports this operation'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: create_connections
+Line: 2431-2431
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to create connections: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Check if the parent node ID is valid',
+            'Ensure coordinates and dimensions are valid numbers',
+            'Verify you have edit access to the document'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
+---
+Tool: join_channel
+Line: 4453-4453
+Suggested:
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to join channel: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure the channel name is valid',
+            'Check if the WebSocket connection is active',
+            'Verify the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+
