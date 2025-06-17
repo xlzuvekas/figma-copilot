@@ -181,7 +181,7 @@ The MCP server provides the following tools for interacting with Figma:
 ### Text Operations
 
 #### Basic Text Operations
-- `scan_text_nodes` - Scan text nodes with intelligent chunking for large designs
+- ~~`scan_text_nodes`~~ - **DEPRECATED**: Use `scan_nodes_with_options` with `nodeTypes: ['TEXT']` instead
 - `scan_nodes_with_options` - Enhanced scanning with depth control, timeout handling, and partial results
 - `set_text_content` - Set the text content of a single text node (Note: loses formatting)
 - `set_multiple_text_contents` - Batch update multiple text nodes efficiently (Note: loses formatting)
@@ -294,7 +294,7 @@ When working with the Figma MCP:
 6. Use component instances when possible for consistency
 7. Handle errors appropriately as all commands can throw exceptions
 8. For large designs:
-   - Use chunking parameters in `scan_text_nodes`
+   - Use `scan_nodes_with_options` with appropriate timeout and depth settings
    - Monitor progress through WebSocket updates
    - Implement appropriate error handling
 9. For text operations:
