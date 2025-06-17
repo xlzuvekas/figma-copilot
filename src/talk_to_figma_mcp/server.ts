@@ -4010,7 +4010,350 @@ server.tool(
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to get slide grid: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get slide grid: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are in Figma Slides mode',
+            'Check if the document has slides',
+            'Verify the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Extract Slide Content Composite Tool
+server.tool(
+  "extract_slide_content",
+  "Extract all content from a Figma slide including text, tables, and optionally images",
+  {
+    slideId: z.string().describe("ID of the slide to extract content from"),
+    includeImages: z.boolean().optional().describe("Include image data in extraction (default: false)"),
+    outputFormat: z.enum(["raw", "structured"]).optional().describe("Output format: raw text or structured JSON (default: structured)"),
+    textOnly: z.boolean().optional().describe("Extract only text content, skip tables and images (default: false)")
+  },
+  async ({ slideId, includeImages = false, outputFormat = "structured", textOnly = false }) => {
+    try {
+      const content: any = {
+        slideId,
+        text: [],
+        tables: [],
+        images: [],
+        metadata: {}
+      };
+      
+      // First, get slide info to validate it exists
+      try {
+        const slideInfo = await sendCommandToFigma("get_node_info", { nodeId: slideId }) as any;
+        if (!slideInfo || slideInfo.type !== "SLIDE") {
+          throw new Error("Node is not a slide");
+        }
+        content.metadata = {
+          name: slideInfo.name || "",
+          width: slideInfo.width || 0,
+          height: slideInfo.height || 0
+        };
+      } catch (error) {
+        return formatErrorForMCP(CommonErrors.nodeNotFound(slideId));
+      }
+      
+      // Scan for all content nodes in the slide
+      const scanOptions = {
+        maxDepth: -1,
+        nodeTypes: textOnly ? ["TEXT"] : ["TEXT", "TABLE", "RECTANGLE", "FRAME"],
+        timeout: 10000,
+        returnPartialOnTimeout: true
+      };
+      
+      const scanResult = await sendCommandToFigma("scan_nodes_with_options", {
+        nodeId: slideId,
+        options: scanOptions
+      }) as any;
+      
+      if (scanResult.nodes && scanResult.nodes.length > 0) {
+        // Process each node type
+        for (const node of scanResult.nodes) {
+          if (node.type === "TEXT" && node.characters) {
+            content.text.push({
+              id: node.id,
+              text: node.characters,
+              name: node.name
+            });
+          } else if (node.type === "TABLE" && !textOnly) {
+            // Get detailed table data
+            try {
+              const tableData = await sendCommandToFigma("get_node_info", { nodeId: node.id });
+              const tableContent = extractTableData(tableData);
+              if (tableContent) {
+                content.tables.push({
+                  id: node.id,
+                  name: node.name,
+                  data: tableContent
+                });
+              }
+            } catch (error) {
+              // Continue with partial results
+            }
+          } else if ((node.type === "RECTANGLE" || node.type === "FRAME") && includeImages && !textOnly) {
+            // Check if it might be an image
+            if (node.name && (node.name.toLowerCase().includes("image") || node.name.toLowerCase().includes("img"))) {
+              content.images.push({
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                bounds: node.absoluteBoundingBox
+              });
+            }
+          }
+        }
+      }
+      
+      // Format output based on preference
+      if (outputFormat === "raw") {
+        // Combine all text content into a single string
+        const rawText = content.text.map((t: any) => t.text).join("\n\n");
+        const tableText = content.tables.map((t: any) => 
+          `Table: ${t.name}\n${formatTableAsText(t.data)}`
+        ).join("\n\n");
+        
+        return {
+          content: [{
+            type: "text",
+            text: [rawText, tableText].filter(Boolean).join("\n\n")
+          }]
+        };
+      } else {
+        // Return structured data
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(content, null, 2)
+          }]
+        };
+      }
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to extract slide content: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: slideId,
+          suggestions: [
+            'Verify the slide ID is correct',
+            'Ensure you are in Figma Slides mode',
+            'Check if you have access to the slide'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
+// Helper function to extract table data
+function extractTableData(tableNode: any): any[][] | null {
+  if (!tableNode || !tableNode.children) return null;
+  
+  const rows: any[][] = [];
+  const cells = tableNode.children.filter((child: any) => child.type === "TABLE_CELL");
+  
+  if (cells.length === 0) return null;
+  
+  // Group cells by row (assuming they're ordered)
+  cells.forEach((cell: any) => {
+    if (cell.characters !== undefined) {
+      // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+      const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+      if (match) {
+        const row = parseInt(match[1]);
+        const col = parseInt(match[2]);
+        
+        if (!rows[row]) rows[row] = [];
+        rows[row][col] = cell.characters;
+      }
+    }
+  });
+  
+  return rows.filter(row => row && row.length > 0);
+}
+
+// Helper function to format table as text
+function formatTableAsText(data: any[][]): string {
+  if (!data || data.length === 0) return "";
+  
+  return data.map(row => 
+    row.map(cell => cell || "").join(" | ")
+  ).join("\n");
+}
+
+// Get Presentation Summary Composite Tool
+server.tool(
+  "get_presentation_summary",
+  "Generate an overview of a Figma presentation including slide count, slide titles, and optionally an outline summarizing key points",
+  {
+    includeOutline: z.boolean().optional().describe("Include an outline with key points from each slide (default: true)"),
+    maxTextPreview: z.number().optional().describe("Maximum characters of text to include per slide in outline (default: 200)"),
+    includeEmptySlides: z.boolean().optional().describe("Include slides with no content in the summary (default: false)")
+  },
+  async ({ includeOutline = true, maxTextPreview = 200, includeEmptySlides = false }) => {
+    try {
+      // First check if we're in slides mode
+      const slidesInfo = await sendCommandToFigma("get_slides_mode", {}) as any;
+      
+      if (!slidesInfo.inSlidesMode) {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "Not in Figma Slides mode. This tool requires an active presentation.",
+          {
+            suggestions: [
+              'Switch to Figma Slides mode first',
+              'Open a presentation in Figma',
+              'Use get_document_info for regular Figma documents'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      // Get all slides
+      const documentInfo = await sendCommandToFigma("get_document_info", {}) as any;
+      const slidesNode = documentInfo.children?.find((child: any) => child.type === "SLIDES");
+      
+      if (!slidesNode || !slidesNode.children) {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "No slides found in the presentation",
+          {
+            suggestions: [
+              'Ensure the presentation has at least one slide',
+              'Check if you have access to the presentation',
+              'Try refreshing the document'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      const slides = slidesNode.children.filter((child: any) => child.type === "SLIDE");
+      const summary: any = {
+        presentationName: documentInfo.name || "Untitled Presentation",
+        totalSlides: slides.length,
+        focusedSlideId: slidesInfo.currentSlideId || null,
+        slides: []
+      };
+      
+      // Process each slide
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        const slideInfo: any = {
+          index: i + 1,
+          id: slide.id,
+          title: slide.name || `Slide ${i + 1}`,
+          hasContent: false
+        };
+        
+        if (includeOutline) {
+          try {
+            // Get content from each slide
+            const scanResult = await sendCommandToFigma("scan_nodes_with_options", {
+              nodeId: slide.id,
+              options: {
+                maxDepth: 3,
+                nodeTypes: ["TEXT"],
+                timeout: 2000,
+                returnPartialOnTimeout: true
+              }
+            }) as any;
+            
+            if (scanResult.nodes && scanResult.nodes.length > 0) {
+              slideInfo.hasContent = true;
+              
+              // Extract key points from text nodes
+              const textNodes = scanResult.nodes.filter((node: any) => node.characters);
+              const allText = textNodes.map((node: any) => node.characters).join(" ");
+              
+              if (allText.trim()) {
+                // Create a preview/summary of the slide content
+                slideInfo.keyPoints = [];
+                
+                // Look for bullet points or numbered lists
+                const bulletMatches = allText.match(/[•·\-*]\s*([^\n•·\-*]+)/g);
+                const numberMatches = allText.match(/\d+\.\s*([^\n]+)/g);
+                
+                if (bulletMatches || numberMatches) {
+                  const points = [...(bulletMatches || []), ...(numberMatches || [])]
+                    .map(point => point.replace(/^[•·\-*\d.]\s*/, '').trim())
+                    .filter(point => point.length > 5)
+                    .slice(0, 5);
+                  
+                  if (points.length > 0) {
+                    slideInfo.keyPoints = points;
+                  }
+                }
+                
+                // If no bullet points found, use first few sentences
+                if (slideInfo.keyPoints.length === 0) {
+                  const preview = allText.substring(0, maxTextPreview).trim();
+                  if (preview) {
+                    slideInfo.textPreview = preview + (allText.length > maxTextPreview ? "..." : "");
+                  }
+                }
+                
+                // Count specific content types
+                slideInfo.contentStats = {
+                  textNodes: textNodes.length,
+                  totalCharacters: allText.length
+                };
+              }
+            }
+          } catch (error) {
+            // Continue with partial results
+            slideInfo.scanError = true;
+          }
+        }
+        
+        // Only include slide if it has content or includeEmptySlides is true
+        if (slideInfo.hasContent || includeEmptySlides) {
+          summary.slides.push(slideInfo);
+        }
+      }
+      
+      // Generate executive summary
+      if (includeOutline) {
+        const slidesWithContent = summary.slides.filter((s: any) => s.hasContent);
+        summary.executiveSummary = {
+          slidesWithContent: slidesWithContent.length,
+          emptySlides: slides.length - slidesWithContent.length,
+          averageContentPerSlide: slidesWithContent.length > 0 
+            ? Math.round(slidesWithContent.reduce((sum: number, slide: any) => 
+                sum + (slide.contentStats?.totalCharacters || 0), 0) / slidesWithContent.length)
+            : 0
+        };
+      }
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(summary, null, 2)
+        }]
+      };
+      
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to generate presentation summary: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are in Figma Slides mode',
+            'Check if the presentation is loaded',
+            'Try reducing maxTextPreview if the operation times out'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );

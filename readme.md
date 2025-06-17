@@ -249,6 +249,11 @@ See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 - `get_instance_overrides` - Extract override properties from a selected component instance
 - `set_instance_overrides` - Apply extracted overrides to target instances
 
+### Composite Tools
+
+- `extract_slide_content` - Extract all content from a Figma slide including text, tables, and optionally images (supports raw or structured output)
+- `get_presentation_summary` - Generate an overview of a Figma presentation including slide count, slide titles, and optionally an outline summarizing key points
+
 ### Export & Advanced
 
 - `export_node_as_image` - Export a node as an image (PNG, JPG, SVG, or PDF) - limited support on image currently returning base64 as text
