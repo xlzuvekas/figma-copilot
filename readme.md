@@ -253,6 +253,7 @@ See [Batch Operations Guide](docs/BATCH_OPERATIONS.md) for best practices.
 
 - `extract_slide_content` - Extract all content from a Figma slide including text, tables, and optionally images (supports raw or structured output)
 - `get_presentation_summary` - Generate an overview of a Figma presentation including slide count, slide titles, and optionally an outline summarizing key points
+- `get_table_data` - Extract data from a Figma table node in various formats (array, object, or CSV) with customizable header handling
 
 ### Export & Advanced
 

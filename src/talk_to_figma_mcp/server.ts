@@ -4358,6 +4358,182 @@ server.tool(
   }
 );
 
+// Get Table Data Tool
+server.tool(
+  "get_table_data",
+  "Extract data from a Figma table node in various formats (array, object, or CSV)",
+  {
+    tableId: z.string().describe("ID of the table node to extract data from"),
+    outputFormat: z.enum(["array", "object", "csv"]).optional().describe("Output format for the table data (default: array)"),
+    includeHeaders: z.boolean().optional().describe("Whether to include the first row as headers (default: true)"),
+    headerRow: z.number().optional().describe("Which row to use as headers (0-based index, default: 0)"),
+    cleanEmptyCells: z.boolean().optional().describe("Remove empty cells from output (default: true)")
+  },
+  async ({ tableId, outputFormat = "array", includeHeaders = true, headerRow = 0, cleanEmptyCells = true }) => {
+    try {
+      // Get the table node info
+      const tableInfo = await sendCommandToFigma("get_node_info", { nodeId: tableId }) as any;
+      
+      if (!tableInfo || tableInfo.type !== "TABLE") {
+        const errorResponse = createErrorResponse(
+          ErrorCodes.OPERATION_FAILED,
+          "Node is not a table",
+          {
+            nodeId: tableId,
+            suggestions: [
+              'Verify the node ID refers to a table',
+              'Use scan_nodes_by_types with nodeTypes: ["TABLE"] to find tables',
+              'Check if the node exists in the current document'
+            ]
+          }
+        );
+        return formatErrorForMCP(errorResponse);
+      }
+      
+      // Extract cells from the table
+      const cells = tableInfo.children?.filter((child: any) => child.type === "TABLE_CELL") || [];
+      
+      if (cells.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: outputFormat === "csv" ? "" : JSON.stringify([], null, 2)
+          }]
+        };
+      }
+      
+      // Parse cells into a 2D array
+      const rows: any[][] = [];
+      let maxRow = 0;
+      let maxCol = 0;
+      
+      cells.forEach((cell: any) => {
+        // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+        const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+        if (match) {
+          const row = parseInt(match[1]);
+          const col = parseInt(match[2]);
+          maxRow = Math.max(maxRow, row);
+          maxCol = Math.max(maxCol, col);
+          
+          if (!rows[row]) rows[row] = [];
+          rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+        }
+      });
+      
+      // Fill any missing cells with empty strings
+      for (let r = 0; r <= maxRow; r++) {
+        if (!rows[r]) rows[r] = [];
+        for (let c = 0; c <= maxCol; c++) {
+          if (rows[r][c] === undefined) rows[r][c] = "";
+        }
+      }
+      
+      // Clean empty rows if requested
+      let finalRows = rows.filter(row => row && row.some(cell => cell !== ""));
+      
+      // Process based on output format
+      let result: any;
+      let headers: string[] = [];
+      
+      if (includeHeaders && finalRows.length > headerRow) {
+        headers = finalRows[headerRow].map((h: any) => String(h).trim() || `Column${finalRows[headerRow].indexOf(h) + 1}`);
+      }
+      
+      switch (outputFormat) {
+        case "object":
+          if (includeHeaders && headers.length > 0) {
+            // Convert to array of objects using headers as keys
+            const dataRows = finalRows.slice(headerRow + 1);
+            result = dataRows.map(row => {
+              const obj: any = {};
+              headers.forEach((header, index) => {
+                const value = row[index] || "";
+                if (!cleanEmptyCells || value !== "") {
+                  obj[header] = value;
+                }
+              });
+              return obj;
+            });
+          } else {
+            // Convert to array of objects with generic keys
+            result = finalRows.map(row => {
+              const obj: any = {};
+              row.forEach((cell, index) => {
+                if (!cleanEmptyCells || cell !== "") {
+                  obj[`col${index + 1}`] = cell;
+                }
+              });
+              return obj;
+            });
+          }
+          break;
+          
+        case "csv":
+          // Convert to CSV format
+          const csvRows = finalRows.map(row => 
+            row.map(cell => {
+              // Escape quotes and wrap in quotes if contains comma, newline, or quotes
+              const cellStr = String(cell);
+              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                return '"' + cellStr.replace(/"/g, '""') + '"';
+              }
+              return cellStr;
+            }).join(',')
+          );
+          result = csvRows.join('\n');
+          break;
+          
+        case "array":
+        default:
+          // Return as 2D array
+          result = cleanEmptyCells 
+            ? finalRows.map(row => row.filter(cell => cell !== ""))
+            : finalRows;
+          break;
+      }
+      
+      // Add metadata about the table
+      const metadata = {
+        tableId,
+        tableName: tableInfo.name || "Untitled Table",
+        rows: finalRows.length,
+        columns: maxCol + 1,
+        totalCells: cells.length,
+        format: outputFormat
+      };
+      
+      return {
+        content: [{
+          type: "text",
+          text: outputFormat === "csv" 
+            ? result 
+            : JSON.stringify({
+                metadata,
+                headers: includeHeaders ? headers : undefined,
+                data: result
+              }, null, 2)
+        }]
+      };
+      
+    } catch (error) {
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to extract table data: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          nodeId: tableId,
+          suggestions: [
+            'Verify the table ID is correct',
+            'Ensure the node is a TABLE type',
+            'Check if you have access to the table'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
+    }
+  }
+);
+
 // Create Shape with Text Tool
 server.tool(
   "create_shape_with_text",
