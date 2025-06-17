@@ -6680,11 +6680,42 @@ async function createConnections(params) {
 async function getNodes(params) {
   const { nodeIds, includeChildren = true, maxDepth = -1 } = params || {};
   
-  // Handle both single nodeId string and array of nodeIds
-  const ids = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
+  if (!nodeIds) {
+    throw new Error("Missing nodeIds parameter");
+  }
+  
+  // Handle different input formats including stringified arrays
+  let ids;
+  
+  if (typeof nodeIds === 'string') {
+    // Check if it's a stringified array
+    if (nodeIds.startsWith('[') && nodeIds.endsWith(']')) {
+      try {
+        // Try to parse as JSON array
+        const parsed = JSON.parse(nodeIds);
+        if (Array.isArray(parsed)) {
+          ids = parsed;
+        } else {
+          // Not a valid array, treat as single ID
+          ids = [nodeIds];
+        }
+      } catch (e) {
+        // Failed to parse, treat as single ID
+        ids = [nodeIds];
+      }
+    } else {
+      // Regular single node ID string
+      ids = [nodeIds];
+    }
+  } else if (Array.isArray(nodeIds)) {
+    // Already an array
+    ids = nodeIds;
+  } else {
+    throw new Error("nodeIds must be a string or array of strings");
+  }
   
   if (!ids || ids.length === 0) {
-    throw new Error("Missing nodeIds parameter");
+    throw new Error("No node IDs provided");
   }
   
   // For single node, use getNodeInfo for efficiency
@@ -6863,17 +6894,44 @@ async function getPresentationSummary(params) {
   
   // Get document info
   const docInfo = await getDocumentInfo();
-  const slidesNode = docInfo.children?.find(child => child.type === "SLIDES");
   
-  if (!slidesNode) {
-    throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
+  // Check for slide-related nodes in multiple ways
+  // In Slides mode, structure can vary - look for SLIDES, SLIDE_GRID, or direct SLIDE children
+  let slidesNode = docInfo.children?.find(child => 
+    child.type === "SLIDES" || child.type === "SLIDE_GRID"
+  );
+  
+  // If no SLIDES/SLIDE_GRID node, check if we have SLIDE nodes directly
+  let slides = [];
+  
+  if (slidesNode && slidesNode.children) {
+    // Get slides from container node
+    slides = slidesNode.children.filter(child => child.type === "SLIDE");
+  } else {
+    // Try to find slides directly in children or deeper
+    const allChildren = docInfo.children || [];
+    
+    // Check direct children for slides
+    slides = allChildren.filter(child => child.type === "SLIDE");
+    
+    // If no direct slides, check one level deeper (common in Slides mode)
+    if (slides.length === 0) {
+      for (const child of allChildren) {
+        if (child.children) {
+          const childSlides = child.children.filter(grandchild => grandchild.type === "SLIDE");
+          if (childSlides.length > 0) {
+            slides = childSlides;
+            slidesNode = child; // Use the parent as the container
+            break;
+          }
+        }
+      }
+    }
   }
   
-  if (!slidesNode.children) {
-    throw new Error("No slides found in the presentation");
+  if (slides.length === 0) {
+    throw new Error("No slides found. This tool requires a Figma Slides presentation.");
   }
-  
-  const slides = slidesNode.children.filter(child => child.type === "SLIDE");
   
   // Try to get current slide ID, but don't fail if not available
   let focusedSlideId = null;
