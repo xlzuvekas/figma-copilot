@@ -9587,47 +9587,58 @@ function getPresentationSummary(_x88) {
 function _getPresentationSummary() {
   _getPresentationSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee97(params) {
     var _docInfo$children;
-    var _ref74, _ref74$includeOutline, includeOutline, _ref74$maxTextPreview, maxTextPreview, _ref74$includeEmptySl, includeEmptySlides, slidesMode, docInfo, slidesNode, slides, summary, i, slide, slideInfo, scanResult, textNodes, allText, bulletMatches, numberMatches, points, preview, slidesWithContent, _t106;
+    var _ref74, _ref74$includeOutline, includeOutline, _ref74$maxTextPreview, maxTextPreview, _ref74$includeEmptySl, includeEmptySlides, docInfo, slidesNode, slides, focusedSlideId, contextInfo, summary, i, slide, slideInfo, scanResult, textNodes, allText, bulletMatches, numberMatches, points, preview, slidesWithContent, _t106, _t107;
     return _regenerator().w(function (_context97) {
       while (1) switch (_context97.n) {
         case 0:
-          _ref74 = params || {}, _ref74$includeOutline = _ref74.includeOutline, includeOutline = _ref74$includeOutline === void 0 ? true : _ref74$includeOutline, _ref74$maxTextPreview = _ref74.maxTextPreview, maxTextPreview = _ref74$maxTextPreview === void 0 ? 200 : _ref74$maxTextPreview, _ref74$includeEmptySl = _ref74.includeEmptySlides, includeEmptySlides = _ref74$includeEmptySl === void 0 ? false : _ref74$includeEmptySl; // Check if in slides mode
+          _ref74 = params || {}, _ref74$includeOutline = _ref74.includeOutline, includeOutline = _ref74$includeOutline === void 0 ? true : _ref74$includeOutline, _ref74$maxTextPreview = _ref74.maxTextPreview, maxTextPreview = _ref74$maxTextPreview === void 0 ? 200 : _ref74$maxTextPreview, _ref74$includeEmptySl = _ref74.includeEmptySlides, includeEmptySlides = _ref74$includeEmptySl === void 0 ? false : _ref74$includeEmptySl; // Get document info
           _context97.n = 1;
-          return getSlidesMode();
+          return getDocumentInfo();
         case 1:
-          slidesMode = _context97.v;
-          if (slidesMode.inSlidesMode) {
+          docInfo = _context97.v;
+          slidesNode = (_docInfo$children = docInfo.children) === null || _docInfo$children === void 0 ? void 0 : _docInfo$children.find(function (child) {
+            return child.type === "SLIDES";
+          });
+          if (slidesNode) {
             _context97.n = 2;
             break;
           }
           throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
         case 2:
-          _context97.n = 3;
-          return getDocumentInfo();
-        case 3:
-          docInfo = _context97.v;
-          slidesNode = (_docInfo$children = docInfo.children) === null || _docInfo$children === void 0 ? void 0 : _docInfo$children.find(function (child) {
-            return child.type === "SLIDES";
-          });
-          if (!(!slidesNode || !slidesNode.children)) {
-            _context97.n = 4;
+          if (slidesNode.children) {
+            _context97.n = 3;
             break;
           }
           throw new Error("No slides found in the presentation");
-        case 4:
+        case 3:
           slides = slidesNode.children.filter(function (child) {
             return child.type === "SLIDE";
-          });
+          }); // Try to get current slide ID, but don't fail if not available
+          focusedSlideId = null;
+          _context97.p = 4;
+          _context97.n = 5;
+          return getCurrentContext({});
+        case 5:
+          contextInfo = _context97.v;
+          if (contextInfo.focusedSlide && contextInfo.focusedSlide.currentSlideId) {
+            focusedSlideId = contextInfo.focusedSlide.currentSlideId;
+          }
+          _context97.n = 7;
+          break;
+        case 6:
+          _context97.p = 6;
+          _t106 = _context97.v;
+        case 7:
           summary = {
             presentationName: docInfo.name || "Untitled Presentation",
             totalSlides: slides.length,
-            focusedSlideId: slidesMode.currentSlideId || null,
+            focusedSlideId: focusedSlideId,
             slides: []
           }; // Process each slide
           i = 0;
-        case 5:
+        case 8:
           if (!(i < slides.length)) {
-            _context97.n = 11;
+            _context97.n = 14;
             break;
           }
           slide = slides[i];
@@ -9638,11 +9649,11 @@ function _getPresentationSummary() {
             hasContent: false
           };
           if (!includeOutline) {
-            _context97.n = 9;
+            _context97.n = 12;
             break;
           }
-          _context97.p = 6;
-          _context97.n = 7;
+          _context97.p = 9;
+          _context97.n = 10;
           return scanNodesWithOptions({
             nodeId: slide.id,
             options: {
@@ -9652,7 +9663,7 @@ function _getPresentationSummary() {
               returnPartialOnTimeout: true
             }
           });
-        case 7:
+        case 10:
           scanResult = _context97.v;
           if (scanResult.nodes && scanResult.nodes.length > 0) {
             slideInfo.hasContent = true;
@@ -9690,21 +9701,21 @@ function _getPresentationSummary() {
               };
             }
           }
-          _context97.n = 9;
+          _context97.n = 12;
           break;
-        case 8:
-          _context97.p = 8;
-          _t106 = _context97.v;
+        case 11:
+          _context97.p = 11;
+          _t107 = _context97.v;
           slideInfo.scanError = true;
-        case 9:
+        case 12:
           if (slideInfo.hasContent || includeEmptySlides) {
             summary.slides.push(slideInfo);
           }
-        case 10:
+        case 13:
           i++;
-          _context97.n = 5;
+          _context97.n = 8;
           break;
-        case 11:
+        case 14:
           // Generate executive summary
           if (includeOutline) {
             slidesWithContent = summary.slides.filter(function (s) {
@@ -9721,7 +9732,7 @@ function _getPresentationSummary() {
           }
           return _context97.a(2, summary);
       }
-    }, _callee97, null, [[6, 8]]);
+    }, _callee97, null, [[9, 11], [4, 6]]);
   }));
   return _getPresentationSummary.apply(this, arguments);
 }
@@ -9731,7 +9742,7 @@ function getTableData(_x89) {
 function _getTableData() {
   _getTableData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee98(params) {
     var _tableInfo$children;
-    var _ref75, tableId, _ref75$outputFormat, outputFormat, _ref75$includeHeaders, includeHeaders, _ref75$headerRow, headerRow, _ref75$cleanEmptyCell, cleanEmptyCells, tableInfo, cells, rows, maxRow, maxCol, r, c, finalRows, result, headers, dataRows, csvRows, _t107;
+    var _ref75, tableId, _ref75$outputFormat, outputFormat, _ref75$includeHeaders, includeHeaders, _ref75$headerRow, headerRow, _ref75$cleanEmptyCell, cleanEmptyCells, tableInfo, cells, rows, maxRow, maxCol, r, c, finalRows, result, headers, dataRows, csvRows, _t108;
     return _regenerator().w(function (_context98) {
       while (1) switch (_context98.n) {
         case 0:
@@ -9776,17 +9787,34 @@ function _getTableData() {
           rows = [];
           maxRow = 0;
           maxCol = 0;
-          cells.forEach(function (cell) {
-            // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+          cells.forEach(function (cell, index) {
+            // Try to parse cell ID for row/column info
+            // Format might be: T[tableId];[row];[col] or just use index-based positioning
             var match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+            var row, col;
             if (match) {
-              var row = parseInt(match[1]);
-              var col = parseInt(match[2]);
-              maxRow = Math.max(maxRow, row);
-              maxCol = Math.max(maxCol, col);
-              if (!rows[row]) rows[row] = [];
-              rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+              // Use parsed row/col if available
+              row = parseInt(match[1]);
+              col = parseInt(match[2]);
+            } else {
+              // Fallback: use index-based positioning
+              // This assumes cells are in row-major order
+              var numCols = Math.ceil(Math.sqrt(cells.length)); // Estimate columns
+              row = Math.floor(index / numCols);
+              col = index % numCols;
             }
+            maxRow = Math.max(maxRow, row);
+            maxCol = Math.max(maxCol, col);
+            if (!rows[row]) rows[row] = [];
+
+            // Get cell text - might be in cell.characters or cell.text.characters
+            var cellText = "";
+            if (cell.characters !== undefined) {
+              cellText = cell.characters;
+            } else if (cell.text && cell.text.characters !== undefined) {
+              cellText = cell.text.characters;
+            }
+            rows[row][col] = cellText;
           });
 
           // Fill missing cells
@@ -9809,8 +9837,8 @@ function _getTableData() {
               return String(h).trim() || "Column".concat(idx + 1);
             });
           }
-          _t107 = outputFormat;
-          _context98.n = _t107 === "object" ? 5 : _t107 === "csv" ? 6 : _t107 === "array" ? 7 : 7;
+          _t108 = outputFormat;
+          _context98.n = _t108 === "object" ? 5 : _t108 === "csv" ? 6 : _t108 === "array" ? 7 : 7;
           break;
         case 5:
           if (includeHeaders && headers.length > 0) {

@@ -454,18 +454,31 @@ server.tool(
   "get_nodes",
   "Get detailed information about one or more nodes in Figma. Accepts either a single node ID or array of IDs.",
   {
-    nodeIds: z.union([
-      z.string().describe("Single node ID to get information about"),
-      z.array(z.string()).describe("Array of node IDs to get information about")
-    ]).describe("Node ID(s) to retrieve"),
+    nodeIds: z.any().describe("Node ID(s) to retrieve - can be a single string ID or an array of string IDs"),
     includeChildren: z.boolean().optional().describe("Whether to include child nodes (default: true)"),
     maxDepth: z.number().optional().describe("Maximum depth for child traversal (-1 for unlimited, default: -1)")
   },
   async ({ nodeIds, includeChildren = true, maxDepth = -1 }) => {
     try {
-      // Normalize input to always work with arrays
-      const isSingleNode = typeof nodeIds === 'string';
-      const nodeIdArray = isSingleNode ? [nodeIds] : nodeIds;
+      // Validate and normalize input
+      if (!nodeIds) {
+        throw new Error("nodeIds parameter is required");
+      }
+      
+      // Handle different input formats
+      let nodeIdArray: string[];
+      let isSingleNode = false;
+      
+      if (typeof nodeIds === 'string') {
+        // Single node ID as string
+        isSingleNode = true;
+        nodeIdArray = [nodeIds];
+      } else if (Array.isArray(nodeIds)) {
+        // Array of node IDs
+        nodeIdArray = nodeIds;
+      } else {
+        throw new Error("nodeIds must be a string or array of strings");
+      }
       
       if (nodeIdArray.length === 0) {
         return {
@@ -4162,22 +4175,52 @@ function extractTableData(tableNode: any): any[][] | null {
   
   if (cells.length === 0) return null;
   
-  // Group cells by row (assuming they're ordered)
-  cells.forEach((cell: any) => {
-    if (cell.characters !== undefined) {
-      // Parse cell ID to get row/column (format: T[tableId];[row];[col])
-      const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
-      if (match) {
-        const row = parseInt(match[1]);
-        const col = parseInt(match[2]);
-        
-        if (!rows[row]) rows[row] = [];
-        rows[row][col] = cell.characters;
-      }
+  let maxRow = 0;
+  let maxCol = 0;
+  
+  // Group cells by row
+  cells.forEach((cell: any, index: number) => {
+    // Try to parse cell ID for row/column info
+    const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+    
+    let row: number, col: number;
+    
+    if (match) {
+      // Use parsed row/col if available
+      row = parseInt(match[1]);
+      col = parseInt(match[2]);
+    } else {
+      // Fallback: use index-based positioning
+      const numCols = Math.ceil(Math.sqrt(cells.length));
+      row = Math.floor(index / numCols);
+      col = index % numCols;
     }
+    
+    maxRow = Math.max(maxRow, row);
+    maxCol = Math.max(maxCol, col);
+    
+    if (!rows[row]) rows[row] = [];
+    
+    // Get cell text - might be in cell.characters or cell.text.characters
+    let cellText = "";
+    if (cell.characters !== undefined) {
+      cellText = cell.characters;
+    } else if (cell.text && cell.text.characters !== undefined) {
+      cellText = cell.text.characters;
+    }
+    
+    rows[row][col] = cellText;
   });
   
-  return rows.filter(row => row && row.length > 0);
+  // Fill missing cells
+  for (let r = 0; r <= maxRow; r++) {
+    if (!rows[r]) rows[r] = [];
+    for (let c = 0; c <= maxCol; c++) {
+      if (rows[r][c] === undefined) rows[r][c] = "";
+    }
+  }
+  
+  return rows.filter(row => row && row.some(cell => cell !== ""));
 }
 
 // Helper function to format table as text
@@ -4200,10 +4243,13 @@ server.tool(
   },
   async ({ includeOutline = true, maxTextPreview = 200, includeEmptySlides = false }) => {
     try {
-      // First check if we're in slides mode
-      const slidesInfo = await sendCommandToFigma("get_slides_mode", {}) as any;
+      // Get document info first to check if we have slides
+      const documentInfo = await sendCommandToFigma("get_document_info", {}) as any;
       
-      if (!slidesInfo.inSlidesMode) {
+      // Check if we have a SLIDES node in the document
+      const slidesNode = documentInfo.children?.find((child: any) => child.type === "SLIDES");
+      
+      if (!slidesNode) {
         const errorResponse = createErrorResponse(
           ErrorCodes.OPERATION_FAILED,
           "Not in Figma Slides mode. This tool requires an active presentation.",
@@ -4218,11 +4264,8 @@ server.tool(
         return formatErrorForMCP(errorResponse);
       }
       
-      // Get all slides
-      const documentInfo = await sendCommandToFigma("get_document_info", {}) as any;
-      const slidesNode = documentInfo.children?.find((child: any) => child.type === "SLIDES");
-      
-      if (!slidesNode || !slidesNode.children) {
+      // slidesNode is already found above
+      if (!slidesNode.children) {
         const errorResponse = createErrorResponse(
           ErrorCodes.OPERATION_FAILED,
           "No slides found in the presentation",
@@ -4238,10 +4281,22 @@ server.tool(
       }
       
       const slides = slidesNode.children.filter((child: any) => child.type === "SLIDE");
+      
+      // Try to get current slide ID, but don't fail if not available
+      let focusedSlideId = null;
+      try {
+        const focusedSlide = await sendCommandToFigma("get_focused_slide", {}) as any;
+        if (focusedSlide && focusedSlide.currentSlideId) {
+          focusedSlideId = focusedSlide.currentSlideId;
+        }
+      } catch (e) {
+        // Ignore error - focusedSlideId will remain null
+      }
+      
       const summary: any = {
         presentationName: documentInfo.name || "Untitled Presentation",
         totalSlides: slides.length,
-        focusedSlideId: slidesInfo.currentSlideId || null,
+        focusedSlideId: focusedSlideId,
         slides: []
       };
       
@@ -4407,18 +4462,40 @@ server.tool(
       let maxRow = 0;
       let maxCol = 0;
       
-      cells.forEach((cell: any) => {
-        // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+      cells.forEach((cell: any, index: number) => {
+        // Try to parse cell ID for row/column info
+        // Format might be: T[tableId];[row];[col] or just use index-based positioning
         const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+        
+        let row: number, col: number;
+        
         if (match) {
-          const row = parseInt(match[1]);
-          const col = parseInt(match[2]);
-          maxRow = Math.max(maxRow, row);
-          maxCol = Math.max(maxCol, col);
-          
-          if (!rows[row]) rows[row] = [];
-          rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+          // Use parsed row/col if available
+          row = parseInt(match[1]);
+          col = parseInt(match[2]);
+        } else {
+          // Fallback: use table cell's absoluteBoundingBox or relative position
+          // For now, just use index-based positioning
+          // This assumes cells are in row-major order
+          const numCols = Math.ceil(Math.sqrt(cells.length)); // Estimate columns
+          row = Math.floor(index / numCols);
+          col = index % numCols;
         }
+        
+        maxRow = Math.max(maxRow, row);
+        maxCol = Math.max(maxCol, col);
+        
+        if (!rows[row]) rows[row] = [];
+        
+        // Get cell text - might be in cell.characters or cell.text.characters
+        let cellText = "";
+        if (cell.characters !== undefined) {
+          cellText = cell.characters;
+        } else if (cell.text && cell.text.characters !== undefined) {
+          cellText = cell.text.characters;
+        }
+        
+        rows[row][col] = cellText;
       });
       
       // Fill any missing cells with empty strings

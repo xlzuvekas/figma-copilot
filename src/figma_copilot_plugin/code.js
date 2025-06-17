@@ -6861,25 +6861,35 @@ async function extractSlideContent(params) {
 async function getPresentationSummary(params) {
   const { includeOutline = true, maxTextPreview = 200, includeEmptySlides = false } = params || {};
   
-  // Check if in slides mode
-  const slidesMode = await getSlidesMode();
-  if (!slidesMode.inSlidesMode) {
-    throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
-  }
-  
   // Get document info
   const docInfo = await getDocumentInfo();
   const slidesNode = docInfo.children?.find(child => child.type === "SLIDES");
   
-  if (!slidesNode || !slidesNode.children) {
+  if (!slidesNode) {
+    throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
+  }
+  
+  if (!slidesNode.children) {
     throw new Error("No slides found in the presentation");
   }
   
   const slides = slidesNode.children.filter(child => child.type === "SLIDE");
+  
+  // Try to get current slide ID, but don't fail if not available
+  let focusedSlideId = null;
+  try {
+    const contextInfo = await getCurrentContext({});
+    if (contextInfo.focusedSlide && contextInfo.focusedSlide.currentSlideId) {
+      focusedSlideId = contextInfo.focusedSlide.currentSlideId;
+    }
+  } catch (e) {
+    // Ignore error - focusedSlideId will remain null
+  }
+  
   const summary = {
     presentationName: docInfo.name || "Untitled Presentation",
     totalSlides: slides.length,
-    focusedSlideId: slidesMode.currentSlideId || null,
+    focusedSlideId: focusedSlideId,
     slides: []
   };
   
@@ -7005,18 +7015,39 @@ async function getTableData(params) {
   let maxRow = 0;
   let maxCol = 0;
   
-  cells.forEach(cell => {
-    // Parse cell ID to get row/column (format: T[tableId];[row];[col])
+  cells.forEach((cell, index) => {
+    // Try to parse cell ID for row/column info
+    // Format might be: T[tableId];[row];[col] or just use index-based positioning
     const match = cell.id.match(/T[^;]+;(\d+);(\d+)/);
+    
+    let row, col;
+    
     if (match) {
-      const row = parseInt(match[1]);
-      const col = parseInt(match[2]);
-      maxRow = Math.max(maxRow, row);
-      maxCol = Math.max(maxCol, col);
-      
-      if (!rows[row]) rows[row] = [];
-      rows[row][col] = cell.characters !== undefined ? cell.characters : "";
+      // Use parsed row/col if available
+      row = parseInt(match[1]);
+      col = parseInt(match[2]);
+    } else {
+      // Fallback: use index-based positioning
+      // This assumes cells are in row-major order
+      const numCols = Math.ceil(Math.sqrt(cells.length)); // Estimate columns
+      row = Math.floor(index / numCols);
+      col = index % numCols;
     }
+    
+    maxRow = Math.max(maxRow, row);
+    maxCol = Math.max(maxCol, col);
+    
+    if (!rows[row]) rows[row] = [];
+    
+    // Get cell text - might be in cell.characters or cell.text.characters
+    let cellText = "";
+    if (cell.characters !== undefined) {
+      cellText = cell.characters;
+    } else if (cell.text && cell.text.characters !== undefined) {
+      cellText = cell.text.characters;
+    }
+    
+    rows[row][col] = cellText;
   });
   
   // Fill missing cells
