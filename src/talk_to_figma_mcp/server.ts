@@ -5,6 +5,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
+import { 
+  ErrorCodes, 
+  CommonErrors, 
+  createErrorResponse, 
+  formatErrorForMCP 
+} from "./errors.js";
 
 // Define TypeScript interfaces for Figma responses
 interface FigmaResponse {
@@ -108,15 +114,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting document info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get document info: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Ensure you are connected to Figma',
+            'Check if a document is open in Figma',
+            'Verify the WebSocket connection is active'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -138,15 +147,18 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting selection: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get selection: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          suggestions: [
+            'Select one or more objects in Figma',
+            'Ensure you are connected to the correct document',
+            'Check if the Figma plugin is running'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -200,15 +212,25 @@ server.tool(
         ]
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting node info: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
+      // Check if it's a node not found error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+        return formatErrorForMCP(CommonErrors.nodeNotFound(nodeId));
+      }
+      
+      const errorResponse = createErrorResponse(
+        ErrorCodes.OPERATION_FAILED,
+        `Failed to get node info: ${errorMessage}`,
+        {
+          nodeId,
+          suggestions: [
+            'Verify the node ID is correct',
+            'Check if the node exists in the current document',
+            'Ensure you have access to view this node'
+          ]
+        }
+      );
+      return formatErrorForMCP(errorResponse);
     }
   }
 );
@@ -1495,25 +1517,20 @@ server.tool(
     nodeId: z.string().describe("ID of the node to scan"),
   },
   async ({ nodeId }) => {
-    // Return deprecation error as per task requirements
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            error: {
-              code: "TOOL_DEPRECATED",
-              message: "The scan_text_nodes tool has been deprecated due to performance issues.",
-              suggestions: [
-                "Use scan_nodes_with_options instead with nodeTypes: ['TEXT'] for better performance",
-                "Example: scan_nodes_with_options({ nodeId: '" + nodeId + "', options: { nodeTypes: ['TEXT'] } })"
-              ]
-            }
-          }, null, 2)
-        }
-      ],
-      isError: true
-    };
+    // Return deprecation error using standardized format
+    const errorResponse = createErrorResponse(
+      ErrorCodes.TOOL_DEPRECATED,
+      "The scan_text_nodes tool has been deprecated due to performance issues.",
+      {
+        nodeId,
+        suggestions: [
+          "Use scan_nodes_with_options instead with nodeTypes: ['TEXT'] for better performance",
+          `Example: scan_nodes_with_options({ nodeId: '${nodeId}', options: { nodeTypes: ['TEXT'] } })`
+        ]
+      }
+    );
+    
+    return formatErrorForMCP(errorResponse);
   }
 );
 
@@ -3263,14 +3280,23 @@ function sendCommandToFigma(
     // If not connected, try to connect first
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       connectToFigma();
-      reject(new Error("Not connected to Figma. Attempting to connect..."));
+      reject(CommonErrors.connectionFailed("WebSocket is not connected"));
       return;
     }
 
     // Check if we need a channel for this command
     const requiresChannel = command !== "join";
     if (requiresChannel && !currentChannel) {
-      reject(new Error("Must join a channel before sending commands"));
+      reject(createErrorResponse(
+        ErrorCodes.CHANNEL_NOT_JOINED,
+        "Must join a channel before sending commands",
+        {
+          suggestions: [
+            'Use the join_channel tool to connect to a channel first',
+            'Ensure the Figma plugin is running and showing the channel name'
+          ]
+        }
+      ));
       return;
     }
 
@@ -3296,7 +3322,7 @@ function sendCommandToFigma(
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id);
         logger.error(`Request ${id} to Figma timed out after ${timeoutMs / 1000} seconds`);
-        reject(new Error('Request to Figma timed out'));
+        reject(CommonErrors.operationTimeout(command));
       }
     }, timeoutMs);
 
