@@ -465,17 +465,38 @@ server.tool(
         throw new Error("nodeIds parameter is required");
       }
       
-      // Handle different input formats
+      // Handle different input formats including stringified arrays
       let nodeIdArray: string[];
       let isSingleNode = false;
       
       if (typeof nodeIds === 'string') {
-        // Single node ID as string
-        isSingleNode = true;
-        nodeIdArray = [nodeIds];
+        // Check if it's a stringified array
+        if (nodeIds.startsWith('[') && nodeIds.endsWith(']')) {
+          try {
+            // Try to parse as JSON array
+            const parsed = JSON.parse(nodeIds);
+            if (Array.isArray(parsed)) {
+              nodeIdArray = parsed;
+              isSingleNode = false;
+            } else {
+              // Not a valid array, treat as single ID
+              isSingleNode = true;
+              nodeIdArray = [nodeIds];
+            }
+          } catch (e) {
+            // Failed to parse, treat as single ID
+            isSingleNode = true;
+            nodeIdArray = [nodeIds];
+          }
+        } else {
+          // Regular single node ID string
+          isSingleNode = true;
+          nodeIdArray = [nodeIds];
+        }
       } else if (Array.isArray(nodeIds)) {
-        // Array of node IDs
+        // Already an array
         nodeIdArray = nodeIds;
+        isSingleNode = nodeIdArray.length === 1;
       } else {
         throw new Error("nodeIds must be a string or array of strings");
       }
@@ -4246,41 +4267,56 @@ server.tool(
       // Get document info first to check if we have slides
       const documentInfo = await sendCommandToFigma("get_document_info", {}) as any;
       
-      // Check if we have a SLIDES node in the document
-      const slidesNode = documentInfo.children?.find((child: any) => child.type === "SLIDES");
+      // Check for slide-related nodes in multiple ways
+      // In Slides mode, structure can vary - look for SLIDES, SLIDE_GRID, or direct SLIDE children
+      let slidesNode = documentInfo.children?.find((child: any) => 
+        child.type === "SLIDES" || child.type === "SLIDE_GRID"
+      );
       
-      if (!slidesNode) {
+      // If no SLIDES/SLIDE_GRID node, check if we have SLIDE nodes directly
+      let slides: any[] = [];
+      
+      if (slidesNode && slidesNode.children) {
+        // Get slides from container node
+        slides = slidesNode.children.filter((child: any) => child.type === "SLIDE");
+      } else {
+        // Try to find slides directly in children or deeper
+        const allChildren = documentInfo.children || [];
+        
+        // Check direct children for slides
+        slides = allChildren.filter((child: any) => child.type === "SLIDE");
+        
+        // If no direct slides, check one level deeper (common in Slides mode)
+        if (slides.length === 0) {
+          for (const child of allChildren) {
+            if (child.children) {
+              const childSlides = child.children.filter((grandchild: any) => grandchild.type === "SLIDE");
+              if (childSlides.length > 0) {
+                slides = childSlides;
+                slidesNode = child; // Use the parent as the container
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      if (slides.length === 0) {
         const errorResponse = createErrorResponse(
           ErrorCodes.OPERATION_FAILED,
-          "Not in Figma Slides mode. This tool requires an active presentation.",
+          "No slides found. This tool requires a Figma Slides presentation.",
           {
             suggestions: [
-              'Switch to Figma Slides mode first',
-              'Open a presentation in Figma',
-              'Use get_document_info for regular Figma documents'
+              'Ensure you are in a Figma Slides document',
+              'Create at least one slide in your presentation',
+              'Use get_document_info to inspect the document structure'
             ]
           }
         );
         return formatErrorForMCP(errorResponse);
       }
       
-      // slidesNode is already found above
-      if (!slidesNode.children) {
-        const errorResponse = createErrorResponse(
-          ErrorCodes.OPERATION_FAILED,
-          "No slides found in the presentation",
-          {
-            suggestions: [
-              'Ensure the presentation has at least one slide',
-              'Check if you have access to the presentation',
-              'Try refreshing the document'
-            ]
-          }
-        );
-        return formatErrorForMCP(errorResponse);
-      }
-      
-      const slides = slidesNode.children.filter((child: any) => child.type === "SLIDE");
+      // slides array is already populated above
       
       // Try to get current slide ID, but don't fail if not available
       let focusedSlideId = null;

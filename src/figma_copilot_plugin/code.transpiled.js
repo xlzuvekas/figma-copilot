@@ -9276,25 +9276,67 @@ function getNodes(_x85) {
 }
 function _getNodes() {
   _getNodes = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee94(params) {
-    var _ref71, nodeIds, _ref71$includeChildre, includeChildren, _ref71$maxDepth, maxDepth, ids, nodeInfo, result;
+    var _ref71, nodeIds, _ref71$includeChildre, includeChildren, _ref71$maxDepth, maxDepth, ids, parsed, nodeInfo, result;
     return _regenerator().w(function (_context94) {
       while (1) switch (_context94.n) {
         case 0:
-          _ref71 = params || {}, nodeIds = _ref71.nodeIds, _ref71$includeChildre = _ref71.includeChildren, includeChildren = _ref71$includeChildre === void 0 ? true : _ref71$includeChildre, _ref71$maxDepth = _ref71.maxDepth, maxDepth = _ref71$maxDepth === void 0 ? -1 : _ref71$maxDepth; // Handle both single nodeId string and array of nodeIds
-          ids = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
-          if (!(!ids || ids.length === 0)) {
+          _ref71 = params || {}, nodeIds = _ref71.nodeIds, _ref71$includeChildre = _ref71.includeChildren, includeChildren = _ref71$includeChildre === void 0 ? true : _ref71$includeChildre, _ref71$maxDepth = _ref71.maxDepth, maxDepth = _ref71$maxDepth === void 0 ? -1 : _ref71$maxDepth;
+          if (nodeIds) {
             _context94.n = 1;
             break;
           }
           throw new Error("Missing nodeIds parameter");
         case 1:
-          if (!(ids.length === 1)) {
+          if (!(typeof nodeIds === 'string')) {
+            _context94.n = 2;
+            break;
+          }
+          // Check if it's a stringified array
+          if (nodeIds.startsWith('[') && nodeIds.endsWith(']')) {
+            try {
+              // Try to parse as JSON array
+              parsed = JSON.parse(nodeIds);
+              if (Array.isArray(parsed)) {
+                ids = parsed;
+              } else {
+                // Not a valid array, treat as single ID
+                ids = [nodeIds];
+              }
+            } catch (e) {
+              // Failed to parse, treat as single ID
+              ids = [nodeIds];
+            }
+          } else {
+            // Regular single node ID string
+            ids = [nodeIds];
+          }
+          _context94.n = 4;
+          break;
+        case 2:
+          if (!Array.isArray(nodeIds)) {
             _context94.n = 3;
             break;
           }
-          _context94.n = 2;
+          // Already an array
+          ids = nodeIds;
+          _context94.n = 4;
+          break;
+        case 3:
+          throw new Error("nodeIds must be a string or array of strings");
+        case 4:
+          if (!(!ids || ids.length === 0)) {
+            _context94.n = 5;
+            break;
+          }
+          throw new Error("No node IDs provided");
+        case 5:
+          if (!(ids.length === 1)) {
+            _context94.n = 7;
+            break;
+          }
+          _context94.n = 6;
           return getNodeInfo(ids[0]);
-        case 2:
+        case 6:
           nodeInfo = _context94.v;
           return _context94.a(2, {
             success: true,
@@ -9302,12 +9344,12 @@ function _getNodes() {
             includeChildren: includeChildren,
             maxDepth: maxDepth
           });
-        case 3:
-          _context94.n = 4;
+        case 7:
+          _context94.n = 8;
           return getMultipleNodesInfo({
             nodeIds: ids
           });
-        case 4:
+        case 8:
           result = _context94.v;
           return _context94.a(2, {
             success: result.success,
@@ -9587,7 +9629,7 @@ function getPresentationSummary(_x88) {
 function _getPresentationSummary() {
   _getPresentationSummary = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee97(params) {
     var _docInfo$children;
-    var _ref74, _ref74$includeOutline, includeOutline, _ref74$maxTextPreview, maxTextPreview, _ref74$includeEmptySl, includeEmptySlides, docInfo, slidesNode, slides, focusedSlideId, contextInfo, summary, i, slide, slideInfo, scanResult, textNodes, allText, bulletMatches, numberMatches, points, preview, slidesWithContent, _t106, _t107;
+    var _ref74, _ref74$includeOutline, includeOutline, _ref74$maxTextPreview, maxTextPreview, _ref74$includeEmptySl, includeEmptySlides, docInfo, slidesNode, slides, allChildren, _iterator23, _step23, child, childSlides, focusedSlideId, contextInfo, summary, i, slide, slideInfo, scanResult, textNodes, allText, bulletMatches, numberMatches, points, preview, slidesWithContent, _t106, _t107, _t108;
     return _regenerator().w(function (_context97) {
       while (1) switch (_context97.n) {
         case 0:
@@ -9596,39 +9638,94 @@ function _getPresentationSummary() {
           return getDocumentInfo();
         case 1:
           docInfo = _context97.v;
+          // Check for slide-related nodes in multiple ways
+          // In Slides mode, structure can vary - look for SLIDES, SLIDE_GRID, or direct SLIDE children
           slidesNode = (_docInfo$children = docInfo.children) === null || _docInfo$children === void 0 ? void 0 : _docInfo$children.find(function (child) {
-            return child.type === "SLIDES";
-          });
-          if (slidesNode) {
+            return child.type === "SLIDES" || child.type === "SLIDE_GRID";
+          }); // If no SLIDES/SLIDE_GRID node, check if we have SLIDE nodes directly
+          slides = [];
+          if (!(slidesNode && slidesNode.children)) {
             _context97.n = 2;
             break;
           }
-          throw new Error("Not in Figma Slides mode. This tool requires an active presentation.");
-        case 2:
-          if (slidesNode.children) {
-            _context97.n = 3;
-            break;
-          }
-          throw new Error("No slides found in the presentation");
-        case 3:
+          // Get slides from container node
           slides = slidesNode.children.filter(function (child) {
             return child.type === "SLIDE";
-          }); // Try to get current slide ID, but don't fail if not available
-          focusedSlideId = null;
-          _context97.p = 4;
-          _context97.n = 5;
-          return getCurrentContext({});
+          });
+          _context97.n = 9;
+          break;
+        case 2:
+          // Try to find slides directly in children or deeper
+          allChildren = docInfo.children || []; // Check direct children for slides
+          slides = allChildren.filter(function (child) {
+            return child.type === "SLIDE";
+          });
+
+          // If no direct slides, check one level deeper (common in Slides mode)
+          if (!(slides.length === 0)) {
+            _context97.n = 9;
+            break;
+          }
+          _iterator23 = _createForOfIteratorHelper(allChildren);
+          _context97.p = 3;
+          _iterator23.s();
+        case 4:
+          if ((_step23 = _iterator23.n()).done) {
+            _context97.n = 6;
+            break;
+          }
+          child = _step23.value;
+          if (!child.children) {
+            _context97.n = 5;
+            break;
+          }
+          childSlides = child.children.filter(function (grandchild) {
+            return grandchild.type === "SLIDE";
+          });
+          if (!(childSlides.length > 0)) {
+            _context97.n = 5;
+            break;
+          }
+          slides = childSlides;
+          slidesNode = child; // Use the parent as the container
+          return _context97.a(3, 6);
         case 5:
+          _context97.n = 4;
+          break;
+        case 6:
+          _context97.n = 8;
+          break;
+        case 7:
+          _context97.p = 7;
+          _t106 = _context97.v;
+          _iterator23.e(_t106);
+        case 8:
+          _context97.p = 8;
+          _iterator23.f();
+          return _context97.f(8);
+        case 9:
+          if (!(slides.length === 0)) {
+            _context97.n = 10;
+            break;
+          }
+          throw new Error("No slides found. This tool requires a Figma Slides presentation.");
+        case 10:
+          // Try to get current slide ID, but don't fail if not available
+          focusedSlideId = null;
+          _context97.p = 11;
+          _context97.n = 12;
+          return getCurrentContext({});
+        case 12:
           contextInfo = _context97.v;
           if (contextInfo.focusedSlide && contextInfo.focusedSlide.currentSlideId) {
             focusedSlideId = contextInfo.focusedSlide.currentSlideId;
           }
-          _context97.n = 7;
+          _context97.n = 14;
           break;
-        case 6:
-          _context97.p = 6;
-          _t106 = _context97.v;
-        case 7:
+        case 13:
+          _context97.p = 13;
+          _t107 = _context97.v;
+        case 14:
           summary = {
             presentationName: docInfo.name || "Untitled Presentation",
             totalSlides: slides.length,
@@ -9636,9 +9733,9 @@ function _getPresentationSummary() {
             slides: []
           }; // Process each slide
           i = 0;
-        case 8:
+        case 15:
           if (!(i < slides.length)) {
-            _context97.n = 14;
+            _context97.n = 21;
             break;
           }
           slide = slides[i];
@@ -9649,11 +9746,11 @@ function _getPresentationSummary() {
             hasContent: false
           };
           if (!includeOutline) {
-            _context97.n = 12;
+            _context97.n = 19;
             break;
           }
-          _context97.p = 9;
-          _context97.n = 10;
+          _context97.p = 16;
+          _context97.n = 17;
           return scanNodesWithOptions({
             nodeId: slide.id,
             options: {
@@ -9663,7 +9760,7 @@ function _getPresentationSummary() {
               returnPartialOnTimeout: true
             }
           });
-        case 10:
+        case 17:
           scanResult = _context97.v;
           if (scanResult.nodes && scanResult.nodes.length > 0) {
             slideInfo.hasContent = true;
@@ -9701,21 +9798,21 @@ function _getPresentationSummary() {
               };
             }
           }
-          _context97.n = 12;
+          _context97.n = 19;
           break;
-        case 11:
-          _context97.p = 11;
-          _t107 = _context97.v;
+        case 18:
+          _context97.p = 18;
+          _t108 = _context97.v;
           slideInfo.scanError = true;
-        case 12:
+        case 19:
           if (slideInfo.hasContent || includeEmptySlides) {
             summary.slides.push(slideInfo);
           }
-        case 13:
+        case 20:
           i++;
-          _context97.n = 8;
+          _context97.n = 15;
           break;
-        case 14:
+        case 21:
           // Generate executive summary
           if (includeOutline) {
             slidesWithContent = summary.slides.filter(function (s) {
@@ -9732,7 +9829,7 @@ function _getPresentationSummary() {
           }
           return _context97.a(2, summary);
       }
-    }, _callee97, null, [[9, 11], [4, 6]]);
+    }, _callee97, null, [[16, 18], [11, 13], [3, 7, 8, 9]]);
   }));
   return _getPresentationSummary.apply(this, arguments);
 }
@@ -9742,7 +9839,7 @@ function getTableData(_x89) {
 function _getTableData() {
   _getTableData = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee98(params) {
     var _tableInfo$children;
-    var _ref75, tableId, _ref75$outputFormat, outputFormat, _ref75$includeHeaders, includeHeaders, _ref75$headerRow, headerRow, _ref75$cleanEmptyCell, cleanEmptyCells, tableInfo, cells, rows, maxRow, maxCol, r, c, finalRows, result, headers, dataRows, csvRows, _t108;
+    var _ref75, tableId, _ref75$outputFormat, outputFormat, _ref75$includeHeaders, includeHeaders, _ref75$headerRow, headerRow, _ref75$cleanEmptyCell, cleanEmptyCells, tableInfo, cells, rows, maxRow, maxCol, r, c, finalRows, result, headers, dataRows, csvRows, _t109;
     return _regenerator().w(function (_context98) {
       while (1) switch (_context98.n) {
         case 0:
@@ -9837,8 +9934,8 @@ function _getTableData() {
               return String(h).trim() || "Column".concat(idx + 1);
             });
           }
-          _t108 = outputFormat;
-          _context98.n = _t108 === "object" ? 5 : _t108 === "csv" ? 6 : _t108 === "array" ? 7 : 7;
+          _t109 = outputFormat;
+          _context98.n = _t109 === "object" ? 5 : _t109 === "csv" ? 6 : _t109 === "array" ? 7 : 7;
           break;
         case 5:
           if (includeHeaders && headers.length > 0) {
