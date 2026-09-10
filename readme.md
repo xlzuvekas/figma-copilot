@@ -1,3 +1,5 @@
+
+
 # Figma Copilot
 
 A Model Context Protocol (MCP) server that enables AI assistants to interact with Figma designs programmatically. Compatible with any MCP client including Cursor, Claude Desktop, and other MCP-enabled applications. Features advanced text handling, batch operations, and comprehensive design automation capabilities.
@@ -300,7 +302,7 @@ When working with the Figma MCP:
    - `create_frame` for containers
    - `create_rectangle` for basic shapes
    - `create_text` for text elements
-5. Verify changes using `get_node_info`
+5. Verify changes using `get_nodes`
 6. Use component instances when possible for consistency
 7. Handle errors appropriately as all commands can throw exceptions
 8. For large designs:
